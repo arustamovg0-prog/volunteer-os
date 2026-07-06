@@ -1,0 +1,358 @@
+datasource db {
+  provider  = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String                   @id @default(uuid())
+  role         String                   // "admin", "manager", "volunteer"
+  fullName     String                   @map("full_name")
+  login        String?                  @unique
+  passwordHash String?                  @map("password_hash")
+  telegramId   BigInt?                  @unique @map("telegram_id")
+  phone        String?                   @unique
+  rating       Float                    @default(0.0)
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  xp           Int                      @default(0)
+  level        Int                      @default(1)
+  badges       String[]                 @default([])
+  interests    String[]                 @default([])
+  skills       String[]                 @default([])
+  latitude     Float?
+  longitude    Float?
+  avatarUrl    String?                  @map("avatar_url")
+  availabilityStatus String              @default("offline") @map("availability_status")
+  availableUntil DateTime?               @map("available_until")
+  availabilityNote String?               @map("availability_note")
+  checkins     CheckIn[]
+  memberships  OrganizationMembership[]
+  chatMessages ChatMessage[]
+  tasks        Task[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String               @id @default(uuid())
+  title       String
+  description String?
+  status      String               // "planning", "active", "completed"
+  startDate   DateTime?            @map("start_date")
+  endDate     DateTime?            @map("end_date")
+  orgId       String?              @map("org_id")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  latitude    Float?
+  longitude   Float?
+  organization VolunteerOrganization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  checkins    CheckIn[]
+  meetings    Meeting[]
+  chats       Chat[]
+  allocations ResourceAllocation[]
+
+  @@index([status])
+  @@map("projects")
+}
+
+model Task {
+  id          String               @id @default(uuid())
+  projectId   String               @map("project_id")
+  assignedTo  String?              @map("assigned_to")
+  title       String
+  deadline    DateTime
+  status      String               // "pending", "accepted", "completed"
+  isOverdue   Boolean              @default(false) @map("is_overdue")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee    User?                @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  allocations ResourceAllocation[]
+
+  @@index([status])
+  @@map("tasks")
+}
+
+model CheckIn {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  projectId   String?   @map("project_id")
+  textReport  String    @map("text_report")
+  hours       Float
+  createdAt   DateTime  @default(now()) @map("created_at")
+  kpiScore    Int?      @map("kpi_score")
+  feedback    String?
+  reviewedBy  String?   @map("reviewed_by")
+  reviewedAt  DateTime? @map("reviewed_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("check_ins")
+}
+
+model Meeting {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  scheduledAt DateTime @map("scheduled_at")
+  link        String?
+  projectId   String?  @map("project_id")
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("meetings")
+}
+
+model KnowledgeBase {
+  id        String   @id @default(uuid())
+  category  String
+  title     String
+  content   String   @db.Text
+  fileUrl   String?  @map("file_url")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("knowledge_base")
+}
+
+model Chat {
+  id          String        @id @default(uuid())
+  type        String        // "management", "organization", "project"
+  title       String
+  projectId   String?       @map("project_id")
+  volunteerId String?       @map("volunteer_id")
+  targetOrgId String?       @map("target_org_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  project     Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages    ChatMessage[]
+
+  @@map("chats")
+}
+
+model ChatMessage {
+  id         String   @id @default(uuid())
+  chatId     String   @map("chat_id")
+  senderId   String   @map("sender_id")
+  senderName String   @map("sender_name")
+  senderRole String   @map("sender_role") // "admin", "manager", "volunteer"
+  text       String
+  createdAt  DateTime @default(now()) @map("created_at")
+  chat       Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model VolunteerOrganization {
+  id           String                   @id @default(uuid())
+  name         String
+  description  String
+  category     String
+  avatarUrl    String?                  @map("avatar_url")
+  contacts     String
+  createdAt    DateTime                 @default(now()) @map("created_at")
+  goals        String?
+  leaderName   String?                  @map("leader_name")
+  orgStructure String?                  @map("org_structure")
+  projects     Project[]
+  news         OrganizationNews[]
+  memberships  OrganizationMembership[]
+
+  @@map("volunteer_organizations")
+}
+
+model OrganizationNews {
+  id           String                @id @default(uuid())
+  orgId        String                @map("org_id")
+  title        String
+  content      String                @db.Text
+  createdAt    DateTime              @default(now()) @map("created_at")
+  organization VolunteerOrganization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("organization_news")
+}
+
+model OrganizationMembership {
+  id           String                @id @default(uuid())
+  orgId        String                @map("org_id")
+  userId       String                @map("user_id")
+  status       String                // "pending", "approved", "rejected"
+  coverLetter  String?               @map("cover_letter")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  organization VolunteerOrganization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@map("organization_memberships")
+}
+
+model TelegramSession {
+  telegramId BigInt   @id @map("telegram_id")
+  state      String
+  data       Json
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@map("telegram_sessions")
+}
+
+model MockMessage {
+  id         String   @id @default(uuid())
+  telegramId BigInt   @map("telegram_id")
+  sender     String   // "user", "bot"
+  text       String
+  keyboard   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("mock_messages")
+}
+
+model BotConfig {
+  id                 Int     @id @default(1)
+  botToken           String? @map("bot_token")
+  webhookUrl         String? @map("webhook_url")
+  isSimulatorEnabled Boolean @default(true) @map("is_simulator_enabled")
+
+  @@map("bot_config")
+}
+
+model ResourceItem {
+  id           String               @id @default(uuid())
+  name         String
+  category     String
+  totalQty     Int                  @map("total_qty")
+  allocatedQty Int                  @map("allocated_qty")
+  unit         String
+  location     String
+  createdAt    DateTime             @default(now()) @map("created_at")
+  allocations  ResourceAllocation[]
+
+  @@map("resource_items")
+}
+
+model ResourceAllocation {
+  id         String       @id @default(uuid())
+  resourceId String       @map("resource_id")
+  projectId  String       @map("project_id")
+  taskId     String?      @map("task_id")
+  qty        Int
+  status     String       // "allocated", "returned"
+  createdAt  DateTime     @default(now()) @map("created_at")
+  resource   ResourceItem @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  project    Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task       Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([resourceId, status])
+  @@index([projectId])
+  @@map("resource_allocations")
+}
+
+model Badge {
+  id          String @id @default(uuid())
+  name        String
+  description String
+  icon        String
+  xpRequired  Int    @map("xp_required")
+
+  @@map("badges")
+}
+
+model GeneratedDoc {
+  id           String   @id @default(uuid())
+  templateType String   @map("template_type")
+  title        String
+  volunteerId  String?  @map("volunteer_id")
+  projectId    String?  @map("project_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("generated_docs")
+}
+
+model AccessKey {
+  id                String   @id @default(uuid())
+  name              String
+  category          String
+  username          String
+  passwordEncrypted String   @map("password_encrypted")
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@unique([category, username])
+  @@map("access_keys")
+}
+
+model ArchiveItem {
+  id          String   @id @default(uuid())
+  chatTitle   String   @map("chat_title")
+  fileName    String   @map("file_name")
+  fileType    String   @map("file_type")
+  fileSize    Int      @map("file_size")
+  fileUrl     String   @map("file_url")
+  extractedAt DateTime @default(now()) @map("extracted_at")
+
+  @@map("archive_items")
+}
+
+model Partner {
+  id               String   @id @default(uuid())
+  name             String
+  category         String
+  anniversaryDate  String   @map("anniversary_date")
+  contactPerson    String   @map("contact_person")
+  email            String?
+  phone            String?
+  autoGreetEnabled Boolean  @default(false) @map("auto_greet_enabled")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("partners")
+}
+
+model HrDocument {
+  id           String   @id @default(uuid())
+  employeeName String   @map("employee_name")
+  docType      String   @map("doc_type")
+  details      String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("hr_documents")
+}
+
+model DidoxInvoice {
+  id               String   @id @default(uuid())
+  supplierName     String   @map("supplier_name")
+  itemName         String   @map("item_name")
+  price            Float
+  qty              Int
+  avgHistoricPrice Float    @map("avg_historic_price")
+  flaggedReason    String?  @map("flagged_reason")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("didox_invoices")
+}
+
+model EmployeeReview {
+  id           String   @id @default(uuid())
+  employeeName String   @map("employee_name")
+  kpiScore     Float    @map("kpi_score")
+  feedback     String
+  createdBy    String   @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("employee_reviews")
+}
+
+model EmergencyAlert {
+  id                    String   @id @default(uuid())
+  title                 String
+  description           String
+  latitude              Float
+  longitude             Float
+  requiredSkills        String[] @default([]) @map("required_skills")
+  radiusKm              Float    @map("radius_km")
+  status                String   @default("active")
+  notifiedVolunteerIds  String[] @default([]) @map("notified_volunteer_ids")
+  attendingVolunteerIds String[] @default([]) @map("attending_volunteer_ids")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@map("emergency_alerts")
+}

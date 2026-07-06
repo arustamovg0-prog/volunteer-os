@@ -1,0 +1,10 @@
+.env
+.env.*
+.vercel
+.DS_Store
+backups
+scratch
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
