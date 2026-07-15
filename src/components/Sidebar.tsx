@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import NotificationsBell from '@/components/NotificationsBell';
+import { useTranslation } from '@/lib/i18n';
 import { 
   LayoutDashboard, 
   FolderGit2, 
@@ -11,6 +13,7 @@ import {
   FileSpreadsheet, 
   ShieldCheck,
   UserCircle2,
+  CalendarDays,
   MessageSquare,
   Building2,
   Settings,
@@ -28,12 +31,14 @@ import {
   BriefcaseBusiness,
   Menu,
   X,
-  Megaphone
+  Megaphone,
+  Activity
 } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { t, locale, setLocale } = useTranslation();
   const [role, setRole] = useState('manager');
   const [name, setName] = useState('Пользователь');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -58,27 +63,29 @@ export default function Sidebar() {
   }, []);
 
   const menuItems = [
-    { name: 'Обзор панелей', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Проекты & Канбан', path: '/dashboard/projects', icon: FolderGit2 },
-    { name: 'Волонтеры CRM', path: '/dashboard/volunteers', icon: Users2 },
-    { name: 'Организации', path: '/dashboard/organizations', icon: Building2 },
-    { name: 'Склад & Инвентарь', path: '/dashboard/inventory', icon: Boxes },
-    { name: 'Рейтинги & KPI', path: '/dashboard/leaderboards', icon: Trophy },
-    { name: 'Партнеры CRM', path: '/dashboard/partners', icon: Handshake },
-    { name: 'ИИ Агенда', path: '/dashboard/agenda-assistant', icon: Bot },
-    { name: 'База знаний', path: '/dashboard/kb', icon: BookOpen },
-    { name: 'Чаты & Поддержка', path: '/dashboard/chats', icon: MessageSquare },
-    { name: 'Цифровой Архив', path: '/dashboard/archive', icon: Archive },
-    { name: 'Менеджер Паролей', path: '/dashboard/access-keys', icon: Key },
-    { name: 'HR-Документы', path: '/dashboard/hr-documents', icon: FileText },
-    { name: 'SMM-Ассистент', path: '/dashboard/smm-assistant', icon: Sparkles },
-    { name: 'Чрезвычайные Ситуации', path: '/dashboard/alerts', icon: AlertTriangle },
-    { name: 'Массовая рассылка', path: '/dashboard/broadcast', icon: Megaphone },
+    { name: t('sidebar.dashboard'), path: '/dashboard', icon: LayoutDashboard },
+    { name: t('sidebar.projects'), path: '/dashboard/projects', icon: FolderGit2 },
+    { name: t('sidebar.calendar'), path: '/dashboard/calendar', icon: CalendarDays },
+    { name: t('sidebar.volunteers'), path: '/dashboard/volunteers', icon: Users2 },
+    { name: t('sidebar.organizations'), path: '/dashboard/organizations', icon: Building2 },
+    { name: t('sidebar.inventory'), path: '/dashboard/inventory', icon: Boxes },
+    { name: t('sidebar.leaderboards'), path: '/dashboard/leaderboards', icon: Trophy },
+    { name: t('sidebar.partners'), path: '/dashboard/partners', icon: Handshake },
+    { name: t('sidebar.agenda'), path: '/dashboard/agenda-assistant', icon: Bot },
+    { name: t('sidebar.kb'), path: '/dashboard/kb', icon: BookOpen },
+    { name: t('sidebar.chats'), path: '/dashboard/chats', icon: MessageSquare },
+    { name: t('sidebar.archive'), path: '/dashboard/archive', icon: Archive },
+    { name: t('sidebar.access_keys'), path: '/dashboard/access-keys', icon: Key },
+    { name: t('sidebar.hr_documents'), path: '/dashboard/hr-documents', icon: FileText },
+    { name: t('sidebar.smm'), path: '/dashboard/smm-assistant', icon: Sparkles },
+    { name: t('sidebar.alerts'), path: '/dashboard/alerts', icon: AlertTriangle },
+    { name: t('sidebar.broadcast'), path: '/dashboard/broadcast', icon: Megaphone },
     ...(role === 'admin' ? [
-      { name: 'Сотрудники', path: '/dashboard/staff', icon: BriefcaseBusiness },
-      { name: 'Дидокс Финансы', path: '/dashboard/finance', icon: Calculator },
-      { name: 'Отчеты & Экспорт', path: '/dashboard/reports', icon: FileSpreadsheet },
-      { name: 'Настройки бота', path: '/dashboard/bot-settings', icon: Settings }
+      { name: t('sidebar.monitor'), path: '/dashboard/monitor', icon: Activity },
+      { name: t('sidebar.staff'), path: '/dashboard/staff', icon: BriefcaseBusiness },
+      { name: t('sidebar.finance'), path: '/dashboard/finance', icon: Calculator },
+      { name: t('sidebar.reports'), path: '/dashboard/reports', icon: FileSpreadsheet },
+      { name: t('sidebar.bot_settings'), path: '/dashboard/bot-settings', icon: Settings }
     ] : []),
   ];
 
@@ -127,13 +134,25 @@ export default function Sidebar() {
             {role === 'admin' ? 'Руководитель' : 'Координатор'}
           </p>
         </div>
-        <button
-          onClick={handleLogout}
-          className="w-9 h-9 shrink-0 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-red-600 hover:border-red-200 flex items-center justify-center transition-all"
-          aria-label="Выйти"
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <select 
+            value={locale} 
+            onChange={(e) => setLocale(e.target.value as 'ru'|'en'|'uz')}
+            className="text-xs bg-transparent border-none text-slate-500 font-medium focus:ring-0 cursor-pointer hover:text-slate-700"
+          >
+            <option value="ru">RU</option>
+            <option value="en">EN</option>
+            <option value="uz">UZ</option>
+          </select>
+          <NotificationsBell />
+          <button
+            onClick={handleLogout}
+            className="w-8 h-8 shrink-0 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-red-600 hover:border-red-200 flex items-center justify-center transition-all ml-1"
+            aria-label="Выйти"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -13,6 +13,8 @@ import {
   UserCheck,
   X
 } from 'lucide-react';
+import { useApi } from '@/lib/useApi';
+import { useSWRConfig } from 'swr';
 
 interface Project {
   id: string;
@@ -38,9 +40,14 @@ interface Task {
 }
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { mutate } = useSWRConfig();
+  
+  const { data: projects = [] } = useApi<Project[]>('/api/projects');
+  const { data: tasks = [] } = useApi<Task[]>('/api/tasks');
+  const { data: coordinatorsData } = useApi<any>('/api/users?role=coordinator');
+  const coordinators: Coordinator[] = (coordinatorsData?.users || coordinatorsData || []).filter((u: any) => u.role === 'coordinator');
+
+  const loading = !projects.length && !tasks.length && !coordinatorsData;
 
   // Current authenticated role
   const [role, setRole] = useState('manager');
@@ -55,7 +62,6 @@ export default function ProjectsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Coordinator assignment
-  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
   const [assigningProjectId, setAssigningProjectId] = useState<string | null>(null);
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState('');
 
@@ -69,23 +75,8 @@ export default function ProjectsPage() {
     };
 
     window.addEventListener('auth-session-change', handleRoleChange);
-    fetchData();
-    fetchCoordinators();
-
     return () => window.removeEventListener('auth-session-change', handleRoleChange);
   }, []);
-
-  async function fetchCoordinators() {
-    try {
-      const res = await fetch('/api/users?role=coordinator', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setCoordinators((data.users || data || []).filter((u: any) => u.role === 'coordinator'));
-      }
-    } catch (e) {
-      console.error('Failed to load coordinators', e);
-    }
-  }
 
   async function handleAssignCoordinator() {
     if (!assigningProjectId) return;
@@ -100,30 +91,9 @@ export default function ProjectsPage() {
         }),
       });
       setAssigningProjectId(null);
-      fetchData();
+      mutate('/api/projects');
     } catch (e) {
       console.error('Failed to assign coordinator', e);
-    }
-  }
-
-  async function fetchData() {
-    try {
-      const [projRes, tasksRes] = await Promise.all([
-        fetch('/api/projects'),
-        fetch('/api/tasks')
-      ]);
-
-      const [projData, tasksData] = await Promise.all([
-        projRes.json(),
-        tasksRes.json()
-      ]);
-
-      setProjects(projData);
-      setTasks(tasksData);
-    } catch (e) {
-      console.error('Failed to load projects data', e);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -151,7 +121,7 @@ export default function ProjectsPage() {
         setDescription('');
         setStartDate('');
         setEndDate('');
-        fetchData();
+        mutate('/api/projects');
       }
     } catch (err) {
       console.error(err);

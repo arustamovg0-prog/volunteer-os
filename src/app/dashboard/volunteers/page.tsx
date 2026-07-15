@@ -14,6 +14,8 @@ import {
   Layers,
   FileText
 } from 'lucide-react';
+import { useApi } from '@/lib/useApi';
+import { useSWRConfig } from 'swr';
 
 interface Volunteer {
   id: string;
@@ -52,12 +54,15 @@ interface CheckIn {
 }
 
 export default function VolunteersPage() {
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [checkins, setCheckins] = useState<CheckIn[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { mutate } = useSWRConfig();
+  
+  const { data: volunteers = [] } = useApi<Volunteer[]>('/api/users?role=volunteer');
+  const { data: tasks = [] } = useApi<Task[]>('/api/tasks');
+  const { data: projects = [] } = useApi<Project[]>('/api/projects');
+  const { data: checkins = [] } = useApi<CheckIn[]>('/api/checkins');
+  const { data: reviews = [] } = useApi<any[]>('/api/employee-reviews');
+
+  const loading = !volunteers.length && !tasks.length && !projects.length && !checkins.length && !reviews.length;
 
   const [role, setRole] = useState('manager');
   const [currentUserId, setCurrentUserId] = useState('');
@@ -104,8 +109,9 @@ export default function VolunteersPage() {
         setCheckInFeedback('');
         setCheckInKpi(5);
         
+        
         // Refresh volunteer data and checkins
-        await fetchData();
+        mutate('/api/checkins');
         
         // Update selected volunteer local state to reflect rating change
         const updatedUserRes = await fetch(`/api/users`);
@@ -137,22 +143,9 @@ export default function VolunteersPage() {
     };
 
     window.addEventListener('auth-session-change', handleSessionChange);
-    fetchData();
 
     return () => window.removeEventListener('auth-session-change', handleSessionChange);
   }, []);
-
-  async function fetchReviews() {
-    try {
-      const res = await fetch('/api/employee-reviews');
-      if (res.ok) {
-        const data = await res.json();
-        setReviews(data);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }
 
   async function handleSubmitReview(e: React.FormEvent) {
     e.preventDefault();
@@ -171,43 +164,14 @@ export default function VolunteersPage() {
       });
       if (res.ok) {
         setReviewFeedback('');
-        fetchReviews();
+        mutate('/api/employee-reviews');
         // Trigger local rating update
-        setVolunteers(prev => prev.map(v => v.id === selectedVolunteer.id ? { ...v, rating: reviewKpi } : v));
         setSelectedVolunteer(prev => prev ? { ...prev, rating: reviewKpi } : null);
       }
     } catch (err) {
       console.error(err);
     } finally {
       setSubmittingReview(false);
-    }
-  }
-
-  async function fetchData() {
-    try {
-      const [usersRes, tasksRes, projectsRes, checkinsRes] = await Promise.all([
-        fetch('/api/users?role=volunteer'),
-        fetch('/api/tasks'),
-        fetch('/api/projects'),
-        fetch('/api/checkins')
-      ]);
-
-      const [usersData, tasksData, projectsData, checkinsData] = await Promise.all([
-        usersRes.json(),
-        tasksRes.json(),
-        projectsRes.json(),
-        checkinsRes.json()
-      ]);
-
-      setVolunteers(usersData);
-      setTasks(tasksData);
-      setProjects(projectsData);
-      setCheckins(checkinsData);
-      await fetchReviews();
-    } catch (e) {
-      console.error('Failed to fetch volunteer data:', e);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -244,7 +208,7 @@ export default function VolunteersPage() {
         setFullName('');
         setPhone('');
         setTelegramId('');
-        fetchData();
+        mutate('/api/users?role=volunteer');
       }
     } catch (err) {
       console.error(err);
@@ -415,6 +379,19 @@ export default function VolunteersPage() {
                     {(selectedVolunteer.rating ?? 5.0).toFixed(2)} / 5.0
                   </span>
                 </div>
+                {volunteerCheckins.reduce((sum, c) => sum + Number(c.hours), 0) >= 100 && (
+                  <div className="pt-2 border-t border-slate-100">
+                    <a 
+                      href={`/api/users/${selectedVolunteer.id}/certificate`}
+                      className="w-full py-1.5 flex justify-center items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] rounded-lg transition-colors"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Award className="w-4 h-4" />
+                      Сгенерировать Сертификат (PDF)
+                    </a>
+                  </div>
+                )}
               </div>
 
               {/* Tasks logs */}

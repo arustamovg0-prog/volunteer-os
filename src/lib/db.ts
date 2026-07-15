@@ -270,6 +270,17 @@ export interface EmergencyAlert {
   created_at: string;
 }
 
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  type: 'info' | 'success' | 'warning' | 'error';
+  link?: string | null;
+  created_at: string;
+}
+
 // Setup connection pool and adapter for Prisma 7
 const connectionString = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/postgres?schema=public";
 const pool = new pg.Pool({ connectionString });
@@ -635,6 +646,19 @@ function mapAlert(ea: any): EmergencyAlert {
   };
 }
 
+function mapNotification(n: any): Notification {
+  return {
+    id: n.id,
+    user_id: n.userId || n.user_id,
+    title: n.title,
+    message: n.message,
+    is_read: n.isRead ?? n.is_read ?? false,
+    type: (n.type || 'info') as any,
+    link: n.link ?? null,
+    created_at: n.createdAt instanceof Date ? n.createdAt.toISOString() : (n.created_at || new Date().toISOString())
+  };
+}
+
 // Asynchronous DB Class implementing the exact schema methods with fallbacks
 class PrismaDBAdapter {
   // Users
@@ -792,6 +816,87 @@ class PrismaDBAdapter {
           return mapUser(data.users[index]);
         }
         throw new Error('User not found');
+      }
+    );
+  }
+
+  // Notifications
+  async getNotifications(userId: string): Promise<Notification[]> {
+    return runQuery(
+      async () => {
+        const list = await prisma.notification.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' }
+        });
+        return list.map(mapNotification);
+      },
+      (data) => {
+        const list = (data.notifications || []).filter((n: any) => n.userId === userId || n.user_id === userId);
+        return list.map(mapNotification).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      }
+    );
+  }
+
+  async getUnreadNotificationsCount(userId: string): Promise<number> {
+    return runQuery(
+      async () => {
+        return await prisma.notification.count({
+          where: { userId, isRead: false }
+        });
+      },
+      (data) => {
+        const list = (data.notifications || []).filter((n: any) => (n.userId === userId || n.user_id === userId) && !(n.isRead ?? n.is_read));
+        return list.length;
+      }
+    );
+  }
+
+  async markNotificationAsRead(id: string): Promise<void> {
+    return runQuery(
+      async () => {
+        await prisma.notification.update({
+          where: { id },
+          data: { isRead: true }
+        });
+      },
+      (data) => {
+        const index = (data.notifications || []).findIndex((n: any) => n.id === id);
+        if (index !== -1) {
+          data.notifications[index].isRead = true;
+          data.notifications[index].is_read = true;
+          saveFallbackData(data);
+        }
+      }
+    );
+  }
+
+  async createNotification(notification: Omit<Notification, 'id' | 'created_at' | 'is_read'>): Promise<Notification> {
+    const id = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    return runQuery(
+      async () => {
+        const created = await prisma.notification.create({
+          data: {
+            id,
+            userId: notification.user_id,
+            title: notification.title,
+            message: notification.message,
+            type: notification.type,
+            link: notification.link || null,
+          }
+        });
+        return mapNotification(created);
+      },
+      (data) => {
+        const newNotif: Notification = {
+          ...notification,
+          id,
+          is_read: false,
+          created_at: new Date().toISOString()
+        };
+        if (!data.notifications) data.notifications = [];
+        data.notifications.push(newNotif);
+        saveFallbackData(data);
+        return mapNotification(newNotif);
       }
     );
   }

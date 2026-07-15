@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { getPrivilegedHeaders } from '@/lib/client-security';
+import { useApi } from '@/lib/useApi';
+import { useTranslation } from '@/lib/i18n';
 
 interface Task {
   id: string;
@@ -80,53 +82,23 @@ interface OperationsOverview {
 }
 
 export default function DashboardPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [checkins, setCheckins] = useState<CheckIn[]>([]);
-  const [loading, setLoading] = useState(true);
   const [notifyingId, setNotifyingId] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [operations, setOperations] = useState<OperationsOverview | null>(null);
-
   const [currentUserRole, setCurrentUserRole] = useState<'manager' | 'admin'>('manager');
+  const { t } = useTranslation();
+
+  const { data: tasks = [] } = useApi<Task[]>('/api/tasks');
+  const { data: projects = [] } = useApi<Project[]>('/api/projects');
+  const { data: users = [] } = useApi<User[]>('/api/users');
+  const { data: checkins = [] } = useApi<CheckIn[]>('/api/checkins');
+  const { data: operations } = useApi<OperationsOverview>('/api/operations/overview');
+
+  const loading = !tasks.length && !projects.length && !users.length && !checkins.length && !operations;
 
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole') as 'manager' | 'admin';
     if (savedRole) setCurrentUserRole(savedRole);
-
-    fetchData();
   }, []);
-
-  async function fetchData() {
-    try {
-      const [tasksRes, projectsRes, usersRes, checkinsRes, operationsRes] = await Promise.all([
-        fetch('/api/tasks'),
-        fetch('/api/projects'),
-        fetch('/api/users'),
-        fetch('/api/checkins'),
-        fetch('/api/operations/overview', { headers: getPrivilegedHeaders() })
-      ]);
-
-      const [tasksData, projectsData, usersData, checkinsData, operationsData] = await Promise.all([
-        tasksRes.json(),
-        projectsRes.json(),
-        usersRes.json(),
-        checkinsRes.json(),
-        operationsRes.ok ? operationsRes.json() : Promise.resolve(null)
-      ]);
-
-      setTasks(Array.isArray(tasksData) ? tasksData : []);
-      setProjects(Array.isArray(projectsData) ? projectsData : []);
-      setUsers(Array.isArray(usersData) ? usersData : []);
-      setCheckins(Array.isArray(checkinsData) ? checkinsData : []);
-      setOperations(operationsData);
-    } catch (err) {
-      console.error('Failed to load dashboard data', err);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleSendReminder(taskId: string) {
     setNotifyingId(taskId);
@@ -145,7 +117,7 @@ export default function DashboardPage() {
 
       setAlertMessage({ type: 'success', text: `Напоминание отправлено в Telegram: ${payload.assignee_name}` });
       setTimeout(() => setAlertMessage(null), 4000);
-      fetchData();
+      // Data will automatically revalidate, but we could trigger it manually using SWR mutate if needed
     } catch (e) {
       console.error('Failed to send telegram alert', e);
       setAlertMessage({ type: 'error', text: 'Ошибка соединения при отправке напоминания в Telegram.' });
@@ -196,16 +168,16 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Обзор панелей</h2>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">{t('dashboard.title')}</h2>
           <p className="text-xs text-slate-500 mt-1">
-            Оперативный статус деятельности ассоциации волонтеров
+            {t('dashboard.subtitle')}
           </p>
         </div>
 
         <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-2 rounded-xl shadow-sm self-start">
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Роль:</span>
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('dashboard.role')}</span>
           <span className="text-xs font-bold text-slate-900">
-            {currentUserRole === 'admin' ? 'Директор' : 'Координатор'}
+            {currentUserRole === 'admin' ? t('dashboard.role_admin') : t('dashboard.role_manager')}
           </span>
         </div>
       </div>
@@ -213,27 +185,27 @@ export default function DashboardPage() {
       {/* Metrics Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="p-6 glass-panel relative overflow-hidden bg-white">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Активные задачи</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.active_tasks')}</p>
           <h4 className="text-2xl font-bold text-slate-900 mt-2">{activeTasksCount}</h4>
-          <p className="text-[10px] text-slate-400 mt-1.5">В процессе выполнения</p>
+          <p className="text-[10px] text-slate-400 mt-1.5">{t('dashboard.in_progress')}</p>
         </div>
 
         <div className="p-6 glass-panel relative overflow-hidden bg-white">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Поступило Чек-инов</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.checkins_received')}</p>
           <h4 className="text-2xl font-bold text-slate-900 mt-2">{pendingCheckinsCount}</h4>
-          <p className="text-[10px] text-slate-400 mt-1.5">Всего отчетов волонтеров</p>
+          <p className="text-[10px] text-slate-400 mt-1.5">{t('dashboard.total_reports')}</p>
         </div>
 
         <div className="p-6 glass-panel relative overflow-hidden bg-white">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Всего отработано</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.total_hours')}</p>
           <h4 className="text-2xl font-bold text-slate-900 mt-2">{totalHours.toFixed(1)} <span className="text-xs font-semibold text-slate-400">ч.</span></h4>
-          <p className="text-[10px] text-slate-400 mt-1.5">Суммарное время помощи</p>
+          <p className="text-[10px] text-slate-400 mt-1.5">{t('dashboard.total_time')}</p>
         </div>
 
         <div className="p-6 glass-panel relative overflow-hidden bg-white">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Средний рейтинг</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.avg_rating')}</p>
           <h4 className="text-2xl font-bold text-slate-900 mt-2">{avgRating.toFixed(2)} <span className="text-xs font-semibold text-slate-400">/ 5.0</span></h4>
-          <p className="text-[10px] text-slate-400 mt-1.5">Рейтинг волонтеров CRM</p>
+          <p className="text-[10px] text-slate-400 mt-1.5">{t('dashboard.crm_rating')}</p>
         </div>
       </div>
 
@@ -244,17 +216,17 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-slate-900" />
-                <h3 className="font-bold text-slate-900 text-sm">Операционный радар</h3>
+                <h3 className="font-bold text-slate-900 text-sm">{t('dashboard.operational_radar')}</h3>
               </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Сегодня</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">{t('dashboard.today')}</span>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: 'Просрочено', value: operations.radar.overdueTasks, icon: Flame, tone: 'text-red-600 bg-red-50 border-red-100' },
-                { label: 'Без исполнителя', value: operations.radar.unassignedTasks, icon: AlertTriangle, tone: 'text-amber-600 bg-amber-50 border-amber-100' },
+                { label: t('dashboard.overdue'), value: operations.radar.overdueTasks, icon: Flame, tone: 'text-red-600 bg-red-50 border-red-100' },
+                { label: t('dashboard.unassigned'), value: operations.radar.unassignedTasks, icon: AlertTriangle, tone: 'text-amber-600 bg-amber-50 border-amber-100' },
                 { label: 'Inbox', value: operations.radar.inboxItems, icon: Inbox, tone: 'text-blue-600 bg-blue-50 border-blue-100' },
-                { label: 'Готовы помочь', value: operations.radar.availableVolunteers, icon: UserCheck, tone: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                { label: t('dashboard.ready_to_help'), value: operations.radar.availableVolunteers, icon: UserCheck, tone: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
               ].map((item) => (
                 <div key={item.label} className={`p-3 rounded-xl border ${item.tone}`}>
                   <div className="flex items-center justify-between">
@@ -268,11 +240,11 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Что требует решения</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('dashboard.action_required')}</p>
                 {operations.actionItems.length === 0 ? (
                   <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-xs text-emerald-700 font-semibold flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4" />
-                    Критичных действий нет
+                    {t('dashboard.no_critical_actions')}
                   </div>
                 ) : (
                   operations.actionItems.slice(0, 5).map((item, index) => (
@@ -285,7 +257,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="space-y-2">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Сводка для руководителя</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('dashboard.manager_summary')}</p>
                 <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 space-y-2">
                   {operations.digest.map((line) => (
                     <p key={line} className="text-xs text-slate-700 leading-relaxed">{line}</p>
@@ -298,25 +270,25 @@ export default function DashboardPage() {
           <div className="glass-panel bg-white p-6 space-y-5">
             <div className="flex items-center gap-2">
               <Radio className="w-4 h-4 text-slate-900" />
-              <h3 className="font-bold text-slate-900 text-sm">Live-команда</h3>
+              <h3 className="font-bold text-slate-900 text-sm">{t('dashboard.live_team')}</h3>
             </div>
 
             <div className="space-y-3">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Готовы помочь сейчас</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('dashboard.ready_now')}</p>
               {operations.availableVolunteers.length === 0 ? (
-                <p className="text-xs text-slate-400 py-4">Пока никто не отметил доступность.</p>
+                <p className="text-xs text-slate-400 py-4">{t('dashboard.no_availability')}</p>
               ) : operations.availableVolunteers.map((volunteer) => (
                 <div key={volunteer.id} className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/50">
                   <p className="text-xs font-bold text-slate-900">{volunteer.full_name}</p>
-                  <p className="text-[10px] text-slate-500 mt-1">{volunteer.availability_note || volunteer.skills.slice(0, 3).join(', ') || 'Готов к задачам'}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">{volunteer.availability_note || volunteer.skills.slice(0, 3).join(', ') || t('dashboard.ready_for_tasks')}</p>
                 </div>
               ))}
             </div>
 
             <div className="space-y-3">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Inbox координаторов</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t('dashboard.coordinators_inbox')}</p>
               {operations.inbox.length === 0 ? (
-                <p className="text-xs text-slate-400 py-4">Новых обращений нет.</p>
+                <p className="text-xs text-slate-400 py-4">{t('dashboard.no_new_messages')}</p>
               ) : operations.inbox.slice(0, 4).map((item) => (
                 <Link key={item.chatId} href="/dashboard/chats" className="block p-3 rounded-xl border border-slate-100 hover:border-slate-300 bg-white">
                   <p className="text-xs font-bold text-slate-900">{item.senderName}</p>
@@ -331,9 +303,9 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-slate-900" />
-                <h3 className="font-bold text-slate-900 text-sm">Риск-скоринг проектов</h3>
+                <h3 className="font-bold text-slate-900 text-sm">{t('dashboard.risk_scoring')}</h3>
               </div>
-              <Link href="/dashboard/projects" className="text-[10px] font-bold text-slate-500 hover:text-slate-900 uppercase">Все проекты →</Link>
+              <Link href="/dashboard/projects" className="text-[10px] font-bold text-slate-500 hover:text-slate-900 uppercase">{t('dashboard.all_projects')}</Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {operations.riskProjects.slice(0, 6).map((project) => (
@@ -368,16 +340,16 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-500" />
-                <h3 className="font-bold text-slate-900 text-sm">Просроченные задачи</h3>
+                <h3 className="font-bold text-slate-900 text-sm">{t('dashboard.overdue_tasks')}</h3>
               </div>
               <span className="text-[10px] bg-red-50 text-red-600 px-2.5 py-1 rounded-full border border-red-100 font-bold uppercase tracking-wider">
-                {overdueTasks.length} Внимание
+                {overdueTasks.length} {t('dashboard.attention')}
               </span>
             </div>
 
             {overdueTasks.length === 0 ? (
               <div className="text-center py-12 text-slate-400 text-xs">
-                Все задачи выполняются в срок. Задержек нет!
+                {t('dashboard.all_tasks_on_time')}
               </div>
             ) : (
               <div className="space-y-3">
@@ -398,10 +370,10 @@ export default function DashboardPage() {
                           <h4 className="font-bold text-slate-900 text-xs">{task.title}</h4>
                         </div>
                         <p className="text-[10px] text-slate-500">
-                          Проект: <span className="font-medium text-slate-700">{project?.title || 'Неизвестно'}</span> | Исполнитель: <span className="font-semibold text-slate-700">{volunteer?.full_name || 'Не назначен'}</span>
+                          {t('dashboard.project')} <span className="font-medium text-slate-700">{project?.title || t('dashboard.unknown')}</span> | {t('dashboard.assignee')} <span className="font-semibold text-slate-700">{volunteer?.full_name || t('dashboard.unassigned_person')}</span>
                         </p>
                         <p className="text-[10px] text-red-600 font-semibold">
-                          Срок истек: {deadline.toLocaleDateString('ru-RU')} в {deadline.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                          {t('dashboard.expired')} {deadline.toLocaleDateString('ru-RU')} в {deadline.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                       
@@ -419,10 +391,10 @@ export default function DashboardPage() {
                       >
                         <Send className="w-3 h-3" />
                         {notifyingId === task.id
-                          ? 'Отправка...'
+                          ? '...'
                           : canSendTelegramReminder
-                            ? 'Напомнить в TG'
-                            : 'TG не привязан'}
+                            ? t('dashboard.remind_in_tg')
+                            : t('dashboard.tg_unlinked')}
                       </button>
                     </div>
                   );
@@ -438,19 +410,19 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <MessageSquareCode className="w-4 h-4 text-slate-900" />
-                <h3 className="font-bold text-slate-900 text-sm">Поток Чек-инов</h3>
+                <h3 className="font-bold text-slate-900 text-sm">{t('dashboard.checkins_stream')}</h3>
               </div>
               <Link 
                 href="/dashboard/reports" 
                 className="text-[10px] text-slate-500 hover:text-slate-900 font-bold uppercase tracking-wider"
               >
-                Все →
+                {t('dashboard.all')}
               </Link>
             </div>
 
             {checkins.length === 0 ? (
               <div className="text-center py-12 text-slate-400 text-xs">
-                Пока отчетов от волонтеров не поступало.
+                {t('dashboard.no_reports_yet')}
               </div>
             ) : (
               <div className="space-y-4 overflow-y-auto max-h-[380px] pr-1">
@@ -467,7 +439,7 @@ export default function DashboardPage() {
                         </span>
                       </div>
                       <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
-                        Проект: <span className="text-slate-600">{project ? project.title : 'Общие задачи'}</span>
+                        {t('dashboard.project')} <span className="text-slate-600">{project ? project.title : t('dashboard.unknown')}</span>
                       </p>
                       <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
                         {report.text_report}

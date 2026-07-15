@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/lib/i18n';
 import { 
   FileSpreadsheet, 
   FileDown, 
@@ -38,6 +39,7 @@ interface User {
 }
 
 export default function ReportsPage() {
+  const { t } = useTranslation();
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -129,9 +131,9 @@ export default function ReportsPage() {
             <ShieldAlert className="w-6 h-6 text-red-500" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-sm font-bold text-slate-900">Доступ ограничен</h3>
+            <h3 className="text-sm font-bold text-slate-900">{t('reports.restricted')}</h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Этот раздел содержит конфиденциальные сводные отчеты и инструменты экспорта данных. Доступ разрешен только для роли <strong>Директор</strong>.
+              {t('reports.restricted_desc')} <strong>{t('reports.restricted_director')}</strong>.
             </p>
           </div>
           <div className="w-full pt-4 border-t border-slate-100 flex flex-col gap-2">
@@ -139,10 +141,10 @@ export default function ReportsPage() {
               href="/dashboard"
               className="py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-all shadow-sm block text-center"
             >
-              Вернуться на главную
+              {t('reports.back_home')}
             </Link>
             <p className="text-[10px] text-slate-400">
-              Вы можете переключить роль в шапке панели на "Директор" для тестирования
+              {t('reports.role_switch_hint')}
             </p>
           </div>
         </div>
@@ -161,9 +163,9 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Отчеты и аналитика</h2>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">{t('reports.title')}</h2>
           <p className="text-xs text-slate-500 mt-1">
-            Сводные отчеты по часам волонтеров и экспорты в государственные ведомства
+            {t('reports.subtitle')}
           </p>
         </div>
         
@@ -174,7 +176,7 @@ export default function ReportsPage() {
             className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 transition-all shadow-sm"
           >
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-            Экспорт CSV
+            {t('reports.exportCsv')}
           </a>
           
           <a
@@ -182,7 +184,7 @@ export default function ReportsPage() {
             className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-semibold text-xs flex items-center gap-1.5 transition-all shadow-sm"
           >
             <FileDown className="w-4 h-4" />
-            Отчет для МинЮста (PDF)
+            {t('reports.exportPdf')}
           </a>
         </div>
       </div>
@@ -190,27 +192,27 @@ export default function ReportsPage() {
       {/* Aggregate Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="p-5 glass-panel bg-white border border-slate-200 shadow-sm rounded-xl">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Всего отчетов</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('reports.totalReports')}</p>
           <h4 className="text-2xl font-bold text-slate-900 mt-1">{totalReportsCount}</h4>
-          <p className="text-[10px] text-slate-400 mt-1">микро-отчеты от ботов</p>
+          <p className="text-[10px] text-slate-400 mt-1">{t('reports.totalReportsSub')}</p>
         </div>
 
         <div className="p-5 glass-panel bg-white border border-slate-200 shadow-sm rounded-xl">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Отработано часов</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('reports.workedHours')}</p>
           <h4 className="text-2xl font-bold text-slate-900 mt-1">{totalHoursLogged.toFixed(1)} ч.</h4>
-          <p className="text-[10px] text-slate-400 mt-1">зафиксированное время</p>
+          <p className="text-[10px] text-slate-400 mt-1">{t('reports.workedHoursSub')}</p>
         </div>
 
         <div className="p-5 glass-panel bg-white border border-slate-200 shadow-sm rounded-xl">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Активные волонтеры</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('reports.activeVolunteers')}</p>
           <h4 className="text-2xl font-bold text-slate-900 mt-1">{reportingVolunteersCount}</h4>
-          <p className="text-[10px] text-slate-400 mt-1">человек отправило отчеты</p>
+          <p className="text-[10px] text-slate-400 mt-1">{t('reports.activeVolunteersSub')}</p>
         </div>
 
         <div className="p-5 glass-panel bg-white border border-slate-200 shadow-sm rounded-xl">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Среднее время отчета</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('reports.avgTime')}</p>
           <h4 className="text-2xl font-bold text-slate-900 mt-1">{averageHoursPerReport.toFixed(1)} ч.</h4>
-          <p className="text-[10px] text-slate-400 mt-1">на один чек-ин</p>
+          <p className="text-[10px] text-slate-400 mt-1">{t('reports.avgTimeSub')}</p>
         </div>
       </div>
 
@@ -218,18 +220,18 @@ export default function ReportsPage() {
       <div className="glass-panel bg-white p-4 border border-slate-200 shadow-sm rounded-xl flex flex-wrap gap-4 items-center">
         <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wider pr-3 border-r border-slate-100 shrink-0">
           <Filter className="w-4 h-4 text-slate-400" />
-          <span>Фильтры:</span>
+          <span>{t('reports.filters')}</span>
         </div>
 
         {/* Project Select */}
         <div className="flex flex-col gap-1 min-w-[150px]">
-          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">По проекту</label>
+          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{t('reports.byProject')}</label>
           <select
             value={selectedProjectId}
             onChange={(e) => setSelectedProjectId(e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
           >
-            <option value="">Все проекты</option>
+            <option value="">{t('reports.allProjects')}</option>
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.title}</option>
             ))}
@@ -238,13 +240,13 @@ export default function ReportsPage() {
 
         {/* Volunteer Select */}
         <div className="flex flex-col gap-1 min-w-[150px]">
-          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">По волонтеру</label>
+          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{t('reports.byVolunteer')}</label>
           <select
             value={selectedVolunteerId}
             onChange={(e) => setSelectedVolunteerId(e.target.value)}
             className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
           >
-            <option value="">Все волонтеры</option>
+            <option value="">{t('reports.allVolunteers')}</option>
             {users.filter(u => u.role === 'volunteer').map(v => (
               <option key={v.id} value={v.id}>{v.full_name}</option>
             ))}
@@ -253,12 +255,12 @@ export default function ReportsPage() {
 
         {/* Search Input */}
         <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
-          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Поиск по отчету</label>
+          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{t('reports.searchReport')}</label>
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
             <input
               type="text"
-              placeholder="Введите имя или текст..."
+              placeholder={t('reports.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
@@ -285,7 +287,7 @@ export default function ReportsPage() {
       <div className="space-y-4">
         {filteredCheckins.length === 0 ? (
           <div className="glass-panel bg-white p-12 text-center text-slate-400 text-xs border border-slate-200 shadow-sm rounded-xl">
-            Отчеты не найдены.
+            {t('reports.notFound')}
           </div>
         ) : (
           filteredCheckins.map((item) => {
@@ -316,11 +318,16 @@ export default function ReportsPage() {
                     <div className="flex items-center gap-2">
                       <UserIcon className="w-3.5 h-3.5 text-slate-400" />
                       <span className="font-semibold text-xs text-slate-900">
-                        Волонтер: {volunteer ? volunteer.full_name : 'Неизвестный'}
+                        {t('reports.vol')}: {volunteer ? volunteer.full_name : t('reports.unknown')}
                       </span>
                       {volunteer?.phone && (
                         <span className="text-[10px] text-slate-400 font-normal">
                           ({volunteer.phone})
+                        </span>
+                      )}
+                      {!volunteer?.phone && (
+                        <span className="text-[10px] text-slate-400 font-normal">
+                          ({t('reports.noPhone')})
                         </span>
                       )}
                     </div>
@@ -328,7 +335,7 @@ export default function ReportsPage() {
                     <div className="flex items-center gap-2 text-[10px] text-slate-500">
                       <Folder className="w-3.5 h-3.5 text-slate-400" />
                       <span>
-                        Проект: {project ? project.title : 'Общие задачи / Развитие ассоциации'}
+                        {t('reports.proj')}: {project ? project.title : t('reports.commonTasks')}
                       </span>
                     </div>
                   </div>
@@ -342,7 +349,7 @@ export default function ReportsPage() {
 
                 {/* Right-aligned meta details */}
                 <div className="hidden md:flex flex-col items-end justify-start shrink-0 text-right">
-                  <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Чек-ин ID</span>
+                  <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">{t('reports.checkinId')}</span>
                   <span className="text-[10px] font-mono text-slate-400 mt-1 select-all">{item.id.slice(0, 8)}...</span>
                 </div>
               </div>

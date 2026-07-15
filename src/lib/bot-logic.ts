@@ -19,30 +19,47 @@ export async function handleBotUpdate(
   telegramId: number,
   text: string,
   username?: string,
-  phone?: string | null
+  phone?: string | null,
+  firstName?: string,
+  lastName?: string
 ): Promise<BotResponse> {
   const cleanText = text.trim();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://volunteer-os-zeta.vercel.app';
   
   // 1. Check if user is registered
   let user = await db.getUserByTelegramId(telegramId);
   
-  // If phone is provided, try to associate the user
-  if (!user && phone) {
-    const cleanPhone = phone.replace(/[^\d+]/g, '');
+  // Handle phone registration (via contact share or manual typing in simulator)
+  const isDirectPhone = cleanText.match(/^\+?[0-9]{10,12}$/);
+  const phoneToRegister = phone || (isDirectPhone ? cleanText : null);
+
+  if (!user && phoneToRegister) {
+    const cleanPhone = phoneToRegister.replace(/[^\d+]/g, '');
     const matchedUser = await db.getUserByPhone(cleanPhone);
     
     if (matchedUser) {
       user = await db.updateUser(matchedUser.id, {
         telegram_id: telegramId
       });
+      return {
+        text: `✅ *Авторизация успешна!*\n\nС возвращением, *${user.full_name}*!\nВаш Telegram привязан к существующему аккаунту.\n\n🌐 *Платформа:* [Вход для Волонтеров](${appUrl}/login?role=volunteer)\n\nНапишите /tasks, чтобы увидеть список ваших задач.`,
+        keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
+      };
     } else {
       // Create a new volunteer with generated login and password
       const generatedLogin = `vol_${telegramId.toString().slice(-6)}`;
       const plainPassword = crypto.randomBytes(4).toString('hex'); // 8 characters
       
+      let fullName = `Волонтер #${telegramId.toString().slice(-4)}`;
+      if (firstName || lastName) {
+        fullName = [firstName, lastName].filter(Boolean).join(' ');
+      } else if (username) {
+        fullName = `@${username}`;
+      }
+      
       user = await db.createUser({
         telegram_id: telegramId,
-        full_name: username ? `@${username}` : `Волонтер #${telegramId.toString().slice(-4)}`,
+        full_name: fullName,
         phone: cleanPhone,
         role: 'volunteer',
         login: generatedLogin,
@@ -50,7 +67,7 @@ export async function handleBotUpdate(
       });
       
       return {
-        text: `✅ *Регистрация успешна!*\n\nВаш профиль создан.\n\n🌐 *Платформа:* [volunteer-os-zeta.vercel.app](https://volunteer-os-zeta.vercel.app/login?role=volunteer)\n👤 *Логин:* \`${generatedLogin}\`\n🔑 *Пароль:* \`${plainPassword}\`\n\nОбязательно сохраните эти данные. Напишите /tasks для просмотра ваших задач в боте.`,
+        text: `✅ *Регистрация успешна!*\n\nДобро пожаловать, *${user.full_name}*! Ваш профиль волонтера создан.\n\n🌐 *Платформа:* [Войти в Volunteer OS](${appUrl}/login?role=volunteer)\n👤 *Логин:* \`${generatedLogin}\`\n🔑 *Пароль:* \`${plainPassword}\`\n\n⚠️ *Обязательно сохраните эти данные!* Они понадобятся для входа на сайт.\n\nНапишите /tasks для просмотра ваших задач в боте.`,
         keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
       };
     }
@@ -60,48 +77,15 @@ export async function handleBotUpdate(
   if (!user) {
     if (cleanText === '/start') {
       return {
-        text: '👋 Приветствуем в Volunteer OS!\n\nДля работы с платформой необходимо пройти быструю регистрацию. Нажмите на кнопку ниже, чтобы поделиться своим контактом.',
+        text: '👋 *Приветствуем в Volunteer OS!*\n\nДля работы с платформой необходимо пройти быструю регистрацию.\nНажмите на кнопку ниже, чтобы безопасно поделиться своим контактом.',
         keyboard: [
           [{ text: '📱 Поделиться контактом', request_contact: true }]
         ]
       };
     }
-    
-    // In simulator mode, users might type their phone number directly
-    if (cleanText.match(/^\+?[0-9]{10,12}$/)) {
-      const cleanPhone = cleanText.replace(/[^\d+]/g, '');
-      const matchedUser = await db.getUserByPhone(cleanPhone);
-      
-      if (matchedUser) {
-        user = await db.updateUser(matchedUser.id, {
-          telegram_id: telegramId
-        });
-        return {
-          text: `✅ Авторизация успешна!\n\nРады вас видеть, *${user.full_name}*.\n\nНапишите /tasks, чтобы увидеть список ваших задач.`,
-          keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
-        };
-      } else {
-        const generatedLogin = `vol_${telegramId.toString().slice(-6)}`;
-        const plainPassword = crypto.randomBytes(4).toString('hex');
-        
-        user = await db.createUser({
-          telegram_id: telegramId,
-          full_name: username ? `@${username}` : `Волонтер #${telegramId.toString().slice(-4)}`,
-          phone: cleanPhone,
-          role: 'volunteer',
-          login: generatedLogin,
-          password_hash: hashPassword(plainPassword)
-        });
-        
-        return {
-          text: `🆕 *Профиль создан!*\n\nИмя: *${user.full_name}*\nТелефон: ${user.phone}\n\n🌐 *Платформа:* [Volunteer OS](https://volunteer-os-zeta.vercel.app/login?role=volunteer)\n👤 *Логин:* \`${generatedLogin}\`\n🔑 *Пароль:* \`${plainPassword}\`\n\nСохраните данные! Напишите /tasks для просмотра задач.`,
-          keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
-        };
-      }
-    }
 
     return {
-      text: '⚠️ Вы еще не зарегистрированы. Пожалуйста, отправьте команду /start или ваш номер телефона (+7...) для регистрации.',
+      text: '⚠️ Вы еще не зарегистрированы.\nПожалуйста, отправьте команду /start для регистрации.',
       keyboard: [
         [{ text: '📱 Поделиться контактом', request_contact: true }]
       ]

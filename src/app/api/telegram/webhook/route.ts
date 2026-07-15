@@ -18,11 +18,15 @@ export async function POST(req: NextRequest) {
     let telegramId: number | null = null;
     let text = '';
     let username = '';
+    let firstName = '';
+    let lastName = '';
     let phone: string | null = null;
 
     if (update.message) {
       telegramId = update.message.chat.id;
       username = update.message.from?.username || '';
+      firstName = update.message.from?.first_name || '';
+      lastName = update.message.from?.last_name || '';
       if (update.message.contact) {
         phone = update.message.contact.phone_number;
         text = '';
@@ -34,6 +38,8 @@ export async function POST(req: NextRequest) {
     } else if (update.callback_query) {
       telegramId = update.callback_query.message.chat.id;
       username = update.callback_query.from?.username || '';
+      firstName = update.callback_query.from?.first_name || '';
+      lastName = update.callback_query.from?.last_name || '';
       text = update.callback_query.data || '';
     }
 
@@ -78,7 +84,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Process update through the state-machine
-    const response = await handleBotUpdate(telegramId, text, username, phone);
+    const response = await handleBotUpdate(telegramId, text, username, phone, firstName, lastName);
 
     // Save bot response to simulator history
     try {

@@ -31,7 +31,10 @@ model User {
   memberships  OrganizationMembership[]
   chatMessages ChatMessage[]
   tasks        Task[]
+  notifications Notification[]
 
+  @@index([role])
+  @@index([availabilityStatus])
   @@map("users")
 }
 
@@ -54,6 +57,7 @@ model Project {
   allocations ResourceAllocation[]
 
   @@index([status])
+  @@index([orgId])
   @@map("projects")
 }
 
@@ -71,6 +75,8 @@ model Task {
   allocations ResourceAllocation[]
 
   @@index([status])
+  @@index([projectId])
+  @@index([assignedTo])
   @@map("tasks")
 }
 
@@ -88,6 +94,8 @@ model CheckIn {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
+  @@index([userId])
+  @@index([projectId])
   @@map("check_ins")
 }
 
@@ -127,6 +135,8 @@ model Chat {
   project     Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   messages    ChatMessage[]
 
+  @@index([projectId])
+  @@index([targetOrgId])
   @@map("chats")
 }
 
@@ -355,4 +365,33 @@ model EmergencyAlert {
   createdAt             DateTime @default(now()) @map("created_at")
 
   @@map("emergency_alerts")
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  level     String   // "INFO", "WARN", "ERROR"
+  message   String
+  details   Json?
+  source    String?  // "client", "server", "cron"
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([level])
+  @@index([createdAt])
+  @@map("system_logs")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false) @map("is_read")
+  type      String   @default("info") // "info", "success", "warning", "error"
+  link      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
 }

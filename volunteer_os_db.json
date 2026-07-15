@@ -1,0 +1,116 @@
+{
+  "users": [
+    {
+      "id": "u_admin_1",
+      "role": "admin",
+      "fullName": "John Admin",
+      "login": "admin",
+      "phone": "+998901234567",
+      "rating": 5,
+      "xp": 1500,
+      "level": 5,
+      "availabilityStatus": "online",
+      "created_at": "2026-07-08T18:12:24.341Z"
+    },
+    {
+      "id": "u_manager_1",
+      "role": "manager",
+      "fullName": "Sarah Coordinator",
+      "login": "manager",
+      "phone": "+998901234568",
+      "rating": 4.8,
+      "xp": 1200,
+      "level": 4,
+      "availabilityStatus": "online",
+      "created_at": "2026-07-08T18:12:24.344Z"
+    },
+    {
+      "id": "u_vol_1",
+      "role": "volunteer",
+      "fullName": "Alex Volunteer",
+      "login": "alex",
+      "phone": "+998901111111",
+      "rating": 4.5,
+      "xp": 500,
+      "level": 2,
+      "availabilityStatus": "online",
+      "created_at": "2026-07-08T18:12:24.344Z"
+    },
+    {
+      "id": "u_vol_2",
+      "role": "volunteer",
+      "fullName": "Maria Helper",
+      "login": "maria",
+      "phone": "+998902222222",
+      "rating": 4.9,
+      "xp": 850,
+      "level": 3,
+      "availabilityStatus": "offline",
+      "created_at": "2026-07-08T18:12:24.344Z"
+    }
+  ],
+  "volunteer_organizations": [
+    {
+      "id": "org_1",
+      "name": "Eco Warriors",
+      "description": "Environmental protection organization",
+      "category": "Экология",
+      "contacts": "eco@example.com",
+      "created_at": "2026-07-08T18:12:24.344Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj_1",
+      "title": "Park Cleanup 2026",
+      "description": "Annual city park cleanup event",
+      "status": "active",
+      "org_id": "org_1",
+      "start_date": "2026-07-08T18:12:24.344Z",
+      "end_date": "2026-07-15T18:12:24.344Z",
+      "created_at": "2026-07-08T18:12:24.344Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_1",
+      "project_id": "proj_1",
+      "assigned_to": "u_vol_1",
+      "title": "Gather equipment",
+      "deadline": "2026-07-09T18:12:24.344Z",
+      "status": "pending",
+      "is_overdue": false,
+      "created_at": "2026-07-08T18:12:24.344Z"
+    },
+    {
+      "id": "task_2",
+      "project_id": "proj_1",
+      "assigned_to": "u_vol_2",
+      "title": "Coordinate volunteers",
+      "deadline": "2026-07-06T18:12:24.344Z",
+      "status": "completed",
+      "is_overdue": true,
+      "created_at": "2026-07-08T18:12:24.344Z"
+    }
+  ],
+  "check_ins": [
+    {
+      "id": "checkin_1",
+      "user_id": "u_vol_1",
+      "project_id": "proj_1",
+      "text_report": "Spent 2 hours gathering garbage bags and gloves.",
+      "hours": 2,
+      "kpi_score": 10,
+      "created_at": "2026-07-06T18:12:24.344Z"
+    },
+    {
+      "id": "checkin_2",
+      "user_id": "u_vol_2",
+      "project_id": "proj_1",
+      "text_report": "Packed 50 food boxes. Everything went smoothly.",
+      "hours": 4.5,
+      "kpi_score": 15,
+      "created_at": "2026-07-07T18:12:24.344Z"
+    }
+  ]
+}
