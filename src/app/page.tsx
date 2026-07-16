@@ -85,7 +85,7 @@ export default function Home() {
             <ChevronRight className="w-4 h-4" />
           </Link>
           <a
-            href="https://t.me/VolunteerOSBot"
+            href="https://t.me/Volunteer_OS_bot"
             target="_blank"
             rel="noopener noreferrer"
             className="px-6 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs border border-slate-200 shadow-sm transition-all duration-200 hover:scale-102 cursor-pointer flex items-center gap-1.5"

@@ -131,7 +131,7 @@ export default function TelegramMiniAppPage() {
               </button>
               <div>
                 <h4 className="font-bold text-[11px] leading-tight">Volunteer OS</h4>
-                <p className="text-[8px] text-slate-400">bot @VolunteerOSBot</p>
+                <p className="text-[8px] text-slate-400">bot @Volunteer_OS_bot</p>
               </div>
             </div>
             
