@@ -29,6 +29,20 @@ export interface User {
   availability_note?: string | null;
 }
 
+export interface VolunteerApplication {
+  id: string;
+  telegram_id: number;
+  language_pref: string;
+  full_name: string;
+  date_of_birth: string;
+  phone: string;
+  spoken_languages: string[];
+  has_disability: boolean;
+  disability_info?: string | null;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -2552,6 +2566,131 @@ class PrismaDBAdapter {
           data.emergencyAlerts = data.emergencyAlerts.filter((ea: any) => ea.id !== id);
           saveFallbackData(data);
         }
+      }
+    );
+  }
+
+  // --- Volunteer Applications ---
+  async getVolunteerApplications(): Promise<VolunteerApplication[]> {
+    return runQuery(
+      async () => {
+        const apps = await prisma.volunteerApplication.findMany({ orderBy: { createdAt: 'desc' } });
+        return apps.map((app: any) => ({
+          id: app.id,
+          telegram_id: Number(app.telegramId),
+          language_pref: app.languagePref,
+          full_name: app.fullName,
+          date_of_birth: app.dateOfBirth,
+          phone: app.phone,
+          spoken_languages: app.spokenLanguages,
+          has_disability: app.hasDisability,
+          disability_info: app.disabilityInfo,
+          status: app.status,
+          created_at: app.createdAt.toISOString()
+        }));
+      },
+      (data) => data.volunteerApplications || []
+    );
+  }
+
+  async getVolunteerApplicationByTelegramId(telegramId: number): Promise<VolunteerApplication | null> {
+    return runQuery(
+      async () => {
+        const app = await prisma.volunteerApplication.findUnique({ where: { telegramId } });
+        if (!app) return null;
+        return {
+          id: app.id,
+          telegram_id: Number(app.telegramId),
+          language_pref: app.languagePref,
+          full_name: app.fullName,
+          date_of_birth: app.dateOfBirth,
+          phone: app.phone,
+          spoken_languages: app.spokenLanguages,
+          has_disability: app.hasDisability,
+          disability_info: app.disabilityInfo,
+          status: app.status,
+          created_at: app.createdAt.toISOString()
+        };
+      },
+      (data) => (data.volunteerApplications || []).find((a: any) => Number(a.telegram_id) === telegramId) || null
+    );
+  }
+
+  async createVolunteerApplication(appData: Omit<VolunteerApplication, 'id' | 'created_at'>): Promise<VolunteerApplication> {
+    return runQuery(
+      async () => {
+        const app = await prisma.volunteerApplication.create({
+          data: {
+            telegramId: appData.telegram_id,
+            languagePref: appData.language_pref,
+            fullName: appData.full_name,
+            dateOfBirth: appData.date_of_birth,
+            phone: appData.phone,
+            spokenLanguages: appData.spoken_languages,
+            hasDisability: appData.has_disability,
+            disabilityInfo: appData.disability_info,
+            status: appData.status
+          }
+        });
+        return {
+          id: app.id,
+          telegram_id: Number(app.telegramId),
+          language_pref: app.languagePref,
+          full_name: app.fullName,
+          date_of_birth: app.dateOfBirth,
+          phone: app.phone,
+          spoken_languages: app.spokenLanguages,
+          has_disability: app.hasDisability,
+          disability_info: app.disabilityInfo,
+          status: app.status,
+          created_at: app.createdAt.toISOString()
+        };
+      },
+      (data) => {
+        const newApp = {
+          id: `app_${Date.now()}`,
+          ...appData,
+          created_at: new Date().toISOString()
+        };
+        data.volunteerApplications = data.volunteerApplications || [];
+        data.volunteerApplications.push(newApp);
+        saveFallbackData(data);
+        return newApp;
+      }
+    );
+  }
+
+  async updateVolunteerApplication(id: string, updates: Partial<VolunteerApplication>): Promise<VolunteerApplication> {
+    return runQuery(
+      async () => {
+        const data: any = {};
+        if (updates.status !== undefined) data.status = updates.status;
+        const app = await prisma.volunteerApplication.update({
+          where: { id },
+          data
+        });
+        return {
+          id: app.id,
+          telegram_id: Number(app.telegramId),
+          language_pref: app.languagePref,
+          full_name: app.fullName,
+          date_of_birth: app.dateOfBirth,
+          phone: app.phone,
+          spoken_languages: app.spokenLanguages,
+          has_disability: app.hasDisability,
+          disability_info: app.disabilityInfo,
+          status: app.status,
+          created_at: app.createdAt.toISOString()
+        };
+      },
+      (data) => {
+        const index = (data.volunteerApplications || []).findIndex((a: any) => a.id === id);
+        if (index !== -1) {
+          data.volunteerApplications[index] = { ...data.volunteerApplications[index], ...updates };
+          saveFallbackData(data);
+          return data.volunteerApplications[index];
+        }
+        throw new Error('Application not found');
       }
     );
   }

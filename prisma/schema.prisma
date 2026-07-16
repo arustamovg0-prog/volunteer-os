@@ -206,6 +206,22 @@ model TelegramSession {
   @@map("telegram_sessions")
 }
 
+model VolunteerApplication {
+  id              String   @id @default(uuid())
+  telegramId      BigInt   @unique @map("telegram_id")
+  languagePref    String   @map("language_pref")
+  fullName        String   @map("full_name")
+  dateOfBirth     String   @map("date_of_birth")
+  phone           String
+  spokenLanguages String[] @map("spoken_languages")
+  hasDisability   Boolean  @map("has_disability")
+  disabilityInfo  String?  @map("disability_info")
+  status          String   @default("pending") // "pending", "accepted", "rejected"
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("volunteer_applications")
+}
+
 model MockMessage {
   id         String   @id @default(uuid())
   telegramId BigInt   @map("telegram_id")

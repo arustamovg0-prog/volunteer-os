@@ -61,12 +61,16 @@ export default function VolunteersPage() {
   const { data: projects = [] } = useApi<Project[]>('/api/projects');
   const { data: checkins = [] } = useApi<CheckIn[]>('/api/checkins');
   const { data: reviews = [] } = useApi<any[]>('/api/employee-reviews');
+  const { data: applications = [] } = useApi<any[]>('/api/applications');
 
-  const loading = !volunteers.length && !tasks.length && !projects.length && !checkins.length && !reviews.length;
+  const loading = !volunteers.length && !tasks.length && !projects.length && !checkins.length && !reviews.length && !applications.length;
 
   const [role, setRole] = useState('manager');
   const [currentUserId, setCurrentUserId] = useState('');
   const [currentUserName, setCurrentUserName] = useState('');
+  
+  const [activeTab, setActiveTab] = useState<'volunteers' | 'applications'>('volunteers');
+  const [processingApp, setProcessingApp] = useState<string | null>(null);
 
   // Selected Volunteer for the slide-over drawer
   const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
@@ -217,6 +221,32 @@ export default function VolunteersPage() {
     }
   }
 
+  async function handleApplicationAction(appId: string, status: 'approved' | 'rejected') {
+    setProcessingApp(appId);
+    try {
+      const res = await fetch(`/api/applications/${appId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.generatedPassword) {
+          alert(`Заявка одобрена!\\n\\nСгенерирован пароль для волонтера: ${data.generatedPassword}\\nЛогин: ${data.generatedLogin}`);
+        }
+        mutate('/api/applications');
+        mutate('/api/users?role=volunteer');
+      } else {
+        alert('Ошибка при обновлении заявки');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Ошибка при обновлении заявки');
+    } finally {
+      setProcessingApp(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center py-24 bg-[#F9FAFB]">
@@ -234,114 +264,226 @@ export default function VolunteersPage() {
     : [];
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in pb-12">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight">База волонтеров (CRM)</h2>
           <p className="text-xs text-slate-500 mt-1">
             Мониторинг часов работы, рейтинга волонтеров и логов активности
           </p>
         </div>
-        {role === 'admin' && (
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all duration-155 active:scale-98"
-          >
-            <Plus className="w-4 h-4" />
-            Зарегистрировать волонтера
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <div className="flex bg-slate-100 p-1 rounded-xl">
+            <button
+              onClick={() => setActiveTab('volunteers')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === 'volunteers' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Волонтеры
+            </button>
+            <button
+              onClick={() => setActiveTab('applications')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                activeTab === 'applications' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              Заявки
+              {applications.filter((a: any) => a.status === 'pending').length > 0 && (
+                <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md text-[10px]">
+                  {applications.filter((a: any) => a.status === 'pending').length}
+                </span>
+              )}
+            </button>
+          </div>
+          {role === 'admin' && activeTab === 'volunteers' && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all duration-155 active:scale-98"
+            >
+              <Plus className="w-4 h-4" />
+              Зарегистрировать
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table view */}
-      <div className="glass-panel overflow-hidden border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
-                <th className="py-4 px-6">Имя волонтера</th>
-                <th className="py-4 px-4">Контакты</th>
-                <th className="py-4 px-4">Задачи (Вып. / Актив.)</th>
-                <th className="py-4 px-4">Всего часов</th>
-                <th className="py-4 px-6 text-right">Рейтинг волонтера</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-              {volunteers.map((vol) => {
-                const volTasks = tasks.filter(t => t.assigned_to === vol.id);
-                const volDone = volTasks.filter(t => t.status === 'completed').length;
-                const volPending = volTasks.length - volDone;
-                const volHours = checkins
-                  .filter(c => c.user_id === vol.id)
-                  .reduce((acc, c) => acc + Number(c.hours), 0);
+      {activeTab === 'volunteers' ? (
+        <div className="glass-panel overflow-hidden border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+                  <th className="py-4 px-6">Имя волонтера</th>
+                  <th className="py-4 px-4">Контакты</th>
+                  <th className="py-4 px-4">Задачи (Вып. / Актив.)</th>
+                  <th className="py-4 px-4">Всего часов</th>
+                  <th className="py-4 px-6 text-right">Рейтинг волонтера</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                {volunteers.map((vol) => {
+                  const volTasks = tasks.filter(t => t.assigned_to === vol.id);
+                  const volDone = volTasks.filter(t => t.status === 'completed').length;
+                  const volPending = volTasks.length - volDone;
+                  const volHours = checkins
+                    .filter(c => c.user_id === vol.id)
+                    .reduce((acc, c) => acc + Number(c.hours), 0);
 
-                const ratingVal = vol.rating ?? 5.0;
-                let ratingColors = 'text-slate-700 bg-slate-100 border-slate-200';
-                if (ratingVal >= 4.5) {
-                  ratingColors = 'text-emerald-700 bg-emerald-50 border-emerald-200';
-                } else if (ratingVal < 3.5) {
-                  ratingColors = 'text-red-750 bg-red-50 border-red-200';
-                }
+                  const ratingVal = vol.rating ?? 5.0;
+                  let ratingColors = 'text-slate-700 bg-slate-100 border-slate-200';
+                  if (ratingVal >= 4.5) {
+                    ratingColors = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+                  } else if (ratingVal < 3.5) {
+                    ratingColors = 'text-red-750 bg-red-50 border-red-200';
+                  }
 
-                return (
-                  <tr 
-                    key={vol.id} 
-                    onClick={() => setSelectedVolunteer(vol)}
-                    className="hover:bg-slate-50 transition-colors cursor-pointer group"
-                  >
-                    {/* Name */}
-                    <td className="py-4 px-6 font-bold text-slate-900">
-                      {vol.full_name}
-                    </td>
+                  return (
+                    <tr 
+                      key={vol.id} 
+                      onClick={() => setSelectedVolunteer(vol)}
+                      className="hover:bg-slate-50 transition-colors cursor-pointer group"
+                    >
+                      {/* Name */}
+                      <td className="py-4 px-6 font-bold text-slate-900">
+                        {vol.full_name}
+                      </td>
 
-                    {/* Contacts */}
+                      {/* Contacts */}
+                      <td className="py-4 px-4 space-y-1">
+                        <div className="flex items-center gap-1.5 text-slate-650">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{vol.phone || 'Без телефона'}</span>
+                        </div>
+                        {vol.telegram_id && (
+                          <div className="flex items-center gap-1.5 text-slate-400 text-[10px]">
+                            <Hash className="w-3 h-3 text-slate-300" />
+                            <span>TG: {vol.telegram_id}</span>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Tasks */}
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            {volDone}
+                          </span>
+                          <span className="flex items-center gap-1 text-slate-400">
+                            <AlertCircle className="w-3.5 h-3.5 text-slate-350" />
+                            {volPending}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Hours */}
+                      <td className="py-4 px-4 font-semibold text-slate-900">
+                        {volHours.toFixed(1)} ч.
+                      </td>
+
+                      {/* Rating */}
+                      <td className="py-4 px-6 text-right">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-bold text-xs ${ratingColors}`}>
+                          <Award className="w-3.5 h-3.5" />
+                          {ratingVal.toFixed(2)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="glass-panel overflow-hidden border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+                  <th className="py-4 px-6">Имя</th>
+                  <th className="py-4 px-4">Контакты</th>
+                  <th className="py-4 px-4">Возраст</th>
+                  <th className="py-4 px-4">Языки / Навыки</th>
+                  <th className="py-4 px-4">Инвалидность</th>
+                  <th className="py-4 px-6 text-right">Действия</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                {applications.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500 font-medium">Нет заявок</td>
+                  </tr>
+                ) : applications.map((app: any) => (
+                  <tr key={app.id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="py-4 px-6 font-bold text-slate-900">{app.full_name}</td>
                     <td className="py-4 px-4 space-y-1">
                       <div className="flex items-center gap-1.5 text-slate-650">
                         <Phone className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{vol.phone || 'Без телефона'}</span>
+                        <span>{app.phone || 'Не указан'}</span>
                       </div>
-                      {vol.telegram_id && (
+                      {app.telegram_id && (
                         <div className="flex items-center gap-1.5 text-slate-400 text-[10px]">
                           <Hash className="w-3 h-3 text-slate-300" />
-                          <span>TG: {vol.telegram_id}</span>
+                          <span>TG: {app.telegram_id}</span>
                         </div>
                       )}
                     </td>
-
-                    {/* Tasks */}
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                          {volDone}
-                        </span>
-                        <span className="flex items-center gap-1 text-slate-400">
-                          <AlertCircle className="w-3.5 h-3.5 text-slate-350" />
-                          {volPending}
-                        </span>
+                    <td className="py-4 px-4 text-slate-600">
+                      {app.date_of_birth}
+                    </td>
+                    <td className="py-4 px-4 text-slate-600">
+                      <div className="flex flex-wrap gap-1">
+                        {app.spoken_languages.map((lang: string, i: number) => (
+                          <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px]">{lang}</span>
+                        ))}
                       </div>
                     </td>
-
-                    {/* Hours */}
-                    <td className="py-4 px-4 font-semibold text-slate-900">
-                      {volHours.toFixed(1)} ч.
+                    <td className="py-4 px-4">
+                      {app.has_disability ? (
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-semibold block">
+                          Да: {app.disability_info}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-[10px]">Нет</span>
+                      )}
                     </td>
-
-                    {/* Rating */}
                     <td className="py-4 px-6 text-right">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-bold text-xs ${ratingColors}`}>
-                        <Award className="w-3.5 h-3.5" />
-                        {ratingVal.toFixed(2)}
-                      </span>
+                      {app.status === 'pending' ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleApplicationAction(app.id, 'rejected')}
+                            disabled={processingApp === app.id}
+                            className="px-3 py-1.5 rounded bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-[10px] transition-colors"
+                          >
+                            Отклонить
+                          </button>
+                          <button
+                            onClick={() => handleApplicationAction(app.id, 'approved')}
+                            disabled={processingApp === app.id}
+                            className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] transition-colors"
+                          >
+                            Одобрить
+                          </button>
+                        </div>
+                      ) : (
+                        <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                          app.status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                        }`}>
+                          {app.status === 'approved' ? 'Одобрена' : 'Отклонена'}
+                        </span>
+                      )}
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Slide-over Volunteer Profile Drawer */}
       {selectedVolunteer && (
