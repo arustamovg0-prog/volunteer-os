@@ -187,9 +187,7 @@ export default function Sidebar() {
           <aside className="w-[min(86vw,320px)] h-full bg-white border-r border-slate-200 shadow-2xl flex flex-col">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 shrink-0 rounded-xl bg-slate-900 flex items-center justify-center shadow-sm">
-                  <span className="font-bold text-white text-sm">V</span>
-                </div>
+                <img src="/logo.png" alt="Volunteer OS" className="w-8 h-8 shrink-0 object-contain" />
                 <div className="min-w-0">
                   <h1 className="font-bold text-slate-900 text-sm tracking-wide truncate">Volunteer OS</h1>
                   <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold truncate">Меню платформы</p>
@@ -223,9 +221,7 @@ export default function Sidebar() {
       <aside className="hidden lg:flex w-64 border-r border-slate-200 bg-white/90 backdrop-blur-2xl flex-col h-screen sticky top-0">
       {/* Brand Header */}
       <div className="p-6 border-b border-slate-100 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center shadow-sm">
-          <span className="font-bold text-white text-md">V</span>
-        </div>
+        <img src="/logo.png" alt="Volunteer OS" className="w-8 h-8 object-contain" />
         <div>
           <h1 className="font-bold text-slate-900 text-sm tracking-wide">Volunteer OS</h1>
           <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Операционное Управление</p>

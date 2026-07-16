@@ -129,6 +129,7 @@ export default function TelegramMiniAppPage() {
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
+              <img src="/logo.png" alt="Bot avatar" className="w-8 h-8 rounded-full object-contain bg-white" />
               <div>
                 <h4 className="font-bold text-[11px] leading-tight">Volunteer OS</h4>
                 <p className="text-[8px] text-slate-400">bot @Volunteer_OS_bot</p>

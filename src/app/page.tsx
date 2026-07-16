@@ -12,9 +12,7 @@ export default function Home() {
       <div className="max-w-4xl w-full text-center space-y-12 animate-fade-in">
         {/* Logo and Brand */}
         <div className="space-y-5">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-slate-900 flex items-center justify-center shadow-lg shadow-slate-900/20">
-            <span className="font-extrabold text-white text-3xl tracking-wider">V</span>
-          </div>
+          <img src="/logo.png" alt="Volunteer OS Logo" className="mx-auto w-16 h-16 object-contain" />
           <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight">
             Volunteer <span className="text-blue-600 bg-clip-text">OS</span>
           </h1>
