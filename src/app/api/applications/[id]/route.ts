@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import crypto from 'crypto';
 import { hashPassword } from '@/lib/security';
+import { sendTelegramMessage } from '@/lib/telegram-api';
+import { waitUntil } from '@vercel/functions';
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const id = parseInt(params.id, 10);
+    const { id } = await context.params;
     const body = await request.json();
     const { status } = body;
 
@@ -31,14 +33,29 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           password_hash: hashPassword(plainPassword)
         });
         
-        // Let the application return with the plain password so the UI can optionally show it,
-        // or we could send a Telegram message to the user here.
-        // For simplicity, we just return the application, and another service (or this one) 
-        // will notify the user via Telegram bot API.
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://volunteer-os-zeta.vercel.app';
+        const messageText = `Добро пожаловать, ${application.full_name}! Ваш профиль волонтера создан.
+🌐 Платформа: Войти в <a href="${appUrl}/login">Volunteer OS</a>
+👤 Логин: <code>${generatedLogin}</code>
+🔑 Пароль: <code>${plainPassword}</code>
+⚠️ Обязательно сохраните эти данные! Они понадобятся для входа на сайт.
+Напишите /tasks для просмотра ваших задач в боте.`;
         
-        // We'll add the plain password to the response only once
+        await sendTelegramMessage(Number(application.telegram_id), messageText, undefined, 'HTML').catch(console.error);
+
         return NextResponse.json({ ...application, generatedPassword: plainPassword, generatedLogin });
+      } else {
+        // User already exists, but application was just approved
+        await sendTelegramMessage(
+          Number(application.telegram_id), 
+          `🎉 Ваша заявка одобрена! Ваш аккаунт уже существует, вы можете войти в систему.`
+        ).catch(console.error);
       }
+    } else if (status === 'rejected') {
+      await sendTelegramMessage(
+        Number(application.telegram_id), 
+        `К сожалению, ваша заявка была отклонена. Если у вас есть вопросы, свяжитесь с координатором.`
+      ).catch(console.error);
     }
 
     return NextResponse.json(application);
