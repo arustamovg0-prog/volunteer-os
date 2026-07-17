@@ -1,6 +1,7 @@
 import { db, User, Task } from './db';
 import { hashPassword } from './security';
 import crypto from 'crypto';
+import { t } from './i18n';
 
 export interface BotResponse {
   text: string;
@@ -26,13 +27,14 @@ export async function handleBotUpdate(
   const cleanText = text.trim();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://volunteer-os-zeta.vercel.app';
   
-  // 1. Check if user is registered
-  let user = await db.getUserByTelegramId(telegramId);
-  
-  let session = await db.getTelegramSession(telegramId);
+  // 1. Check if user is registered, their session, and any existing application concurrently
+  let [user, session, existingApp] = await Promise.all([
+    db.getUserByTelegramId(telegramId),
+    db.getTelegramSession(telegramId),
+    db.getVolunteerApplicationByTelegramId(telegramId)
+  ]);
   
   if (!user) {
-    const existingApp = await db.getVolunteerApplicationByTelegramId(telegramId);
     if (existingApp) {
       if (existingApp.status === 'pending') {
         return { text: 'Ваша заявка уже отправлена на рассмотрение. Пожалуйста, ожидайте решения администратора.' };
@@ -64,15 +66,15 @@ export async function handleBotUpdate(
         if (cleanText.startsWith('lang_')) {
           data.lang = cleanText.replace('lang_', '');
           await db.setTelegramSession(telegramId, 'reg_name', data);
-          return { text: 'Введите ваше Имя и Фамилию:' };
+          return { text: t('reg_name', data.lang) };
         }
-        return { text: 'Пожалуйста, выберите язык, нажав на одну из кнопок.' };
+        return { text: t('reg_choose_lang', data.lang) };
       }
 
       if (state === 'reg_name') {
         data.fullName = cleanText;
         await db.setTelegramSession(telegramId, 'reg_dob', data);
-        return { text: 'Введите дату рождения в формате ДД.ММ.ГГГГ:' };
+        return { text: t('reg_dob', data.lang) };
       }
 
       if (state === 'reg_dob') {
@@ -88,21 +90,21 @@ export async function handleBotUpdate(
           
           if (age < 16) {
             await db.clearTelegramSession(telegramId);
-            return { text: 'Извините, минимальный возраст для волонтерства — 16 лет. Ваша регистрация остановлена.' };
+            return { text: t('reg_age_min', data.lang) };
           }
           if (age > 50) {
             await db.clearTelegramSession(telegramId);
-            return { text: 'Извините, максимальный возраст для волонтерства — 50 лет. Ваша регистрация остановлена.' };
+            return { text: t('reg_age_max', data.lang) };
           }
 
           data.dob = cleanText;
           await db.setTelegramSession(telegramId, 'reg_contact', data);
           return {
-            text: 'Пожалуйста, поделитесь своим контактом (нажмите кнопку ниже):',
-            keyboard: [[{ text: '📱 Поделиться контактом', request_contact: true }]]
+            text: t('reg_contact', data.lang),
+            keyboard: [[{ text: t('reg_contact_btn', data.lang), request_contact: true }]]
           };
         }
-        return { text: 'Неверный формат. Пожалуйста, введите дату в формате ДД.ММ.ГГГГ' };
+        return { text: t('reg_dob_error', data.lang) };
       }
 
       if (state === 'reg_contact') {
@@ -113,28 +115,28 @@ export async function handleBotUpdate(
           data.skills = [];
           await db.setTelegramSession(telegramId, 'reg_skills_lang', data);
           return {
-            text: 'Ваши языковые навыки на уровне разговорной речи. Выберите один или несколько вариантов, затем нажмите "Далее".\nЕсли хотите добавить "Другие", просто напишите их текстом:',
+            text: t('reg_skills', data.lang),
             keyboard: [
-              [{ text: 'Узбекский', callback_data: 'skill_uzb' }, { text: 'Русский', callback_data: 'skill_rus' }],
-              [{ text: 'Английский', callback_data: 'skill_eng' }],
-              [{ text: '➡️ Далее', callback_data: 'skill_next' }]
+              [{ text: t('reg_skills_btn_uzb', data.lang), callback_data: 'skill_uzb' }, { text: t('reg_skills_btn_rus', data.lang), callback_data: 'skill_rus' }],
+              [{ text: t('reg_skills_btn_eng', data.lang), callback_data: 'skill_eng' }],
+              [{ text: t('reg_skills_btn_next', data.lang), callback_data: 'skill_next' }]
             ]
           };
         }
-        return { text: 'Пожалуйста, поделитесь контактом с помощью кнопки.' };
+        return { text: t('reg_contact_error', data.lang) };
       }
 
       if (state === 'reg_skills_lang') {
         data.skills = data.skills || [];
         if (cleanText === 'skill_next') {
           if (data.skills.length === 0) {
-            return { text: 'Пожалуйста, выберите хотя бы один язык или напишите текстом.' };
+            return { text: t('reg_skills_empty', data.lang) };
           }
           await db.setTelegramSession(telegramId, 'reg_disability', data);
           return {
-            text: 'Имеется ли у вас инвалидность?',
+            text: t('reg_disability', data.lang),
             keyboard: [
-              [{ text: 'Да', callback_data: 'disability_yes' }, { text: 'Нет', callback_data: 'disability_no' }]
+              [{ text: t('btn_yes', data.lang), callback_data: 'disability_yes' }, { text: t('btn_no', data.lang), callback_data: 'disability_no' }]
             ]
           };
         } else if (cleanText.startsWith('skill_')) {
@@ -144,12 +146,12 @@ export async function handleBotUpdate(
             data.skills.push(selected);
             await db.setTelegramSession(telegramId, 'reg_skills_lang', data);
           }
-          return { text: `✅ Добавлен язык: ${selected}. Выберите еще или нажмите "Далее".` };
+          return { text: t('reg_skills_added', data.lang, selected) };
         } else {
           // Text input for "Другие"
           data.skills.push(cleanText);
           await db.setTelegramSession(telegramId, 'reg_skills_lang', data);
-          return { text: `✅ Добавлен язык: ${cleanText}. Выберите еще или нажмите "Далее".` };
+          return { text: t('reg_skills_added', data.lang, cleanText) };
         }
       }
 
@@ -166,24 +168,24 @@ export async function handleBotUpdate(
             status: 'pending'
           });
           await db.clearTelegramSession(telegramId);
-          return { text: '✅ Заявка отправлена на расмотрение!' };
+          return { text: t('reg_disability_success', data.lang) };
         } else if (cleanText === 'disability_yes') {
           await db.setTelegramSession(telegramId, 'reg_disability_cat', data);
           return {
-            text: 'Выберите категорию Инвалидности или напишите свой вариант текстом:',
+            text: t('reg_disability_cat', data.lang),
             keyboard: [
-              [{ text: 'Нарушения зрения', callback_data: 'cat_vision' }],
-              [{ text: 'Нарушения слуха', callback_data: 'cat_hearing' }],
-              [{ text: 'Нарушения опорно-двигательного аппарата', callback_data: 'cat_mobility' }],
-              [{ text: 'Нарушения речи', callback_data: 'cat_speech' }],
-              [{ text: 'Ментальные и интеллектуальные нарушения', callback_data: 'cat_mental' }],
-              [{ text: 'Психические заболевания', callback_data: 'cat_psych' }],
-              [{ text: 'Соматические заболевания', callback_data: 'cat_somatic' }],
-              [{ text: 'Множественные нарушения', callback_data: 'cat_multiple' }]
+              [{ text: t('cat_vision', data.lang), callback_data: 'cat_vision' }],
+              [{ text: t('cat_hearing', data.lang), callback_data: 'cat_hearing' }],
+              [{ text: t('cat_mobility', data.lang), callback_data: 'cat_mobility' }],
+              [{ text: t('cat_speech', data.lang), callback_data: 'cat_speech' }],
+              [{ text: t('cat_mental', data.lang), callback_data: 'cat_mental' }],
+              [{ text: t('cat_psych', data.lang), callback_data: 'cat_psych' }],
+              [{ text: t('cat_somatic', data.lang), callback_data: 'cat_somatic' }],
+              [{ text: t('cat_multiple', data.lang), callback_data: 'cat_multiple' }]
             ]
           };
         }
-        return { text: 'Пожалуйста, выберите Да или Нет, используя кнопки.' };
+        return { text: t('reg_disability_error', data.lang) };
       }
 
       if (state === 'reg_disability_cat') {
@@ -211,7 +213,7 @@ export async function handleBotUpdate(
           status: 'pending'
         });
         await db.clearTelegramSession(telegramId);
-        return { text: '✅ Заявка отправлена на расмотрение!' };
+        return { text: t('reg_disability_success', data.lang) };
       }
     }
 
