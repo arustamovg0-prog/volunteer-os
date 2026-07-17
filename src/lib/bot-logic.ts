@@ -1,7 +1,7 @@
 import { db, User, Task } from './db';
 import { hashPassword } from './security';
 import crypto from 'crypto';
-import { t } from './i18n';
+import { t } from './bot-i18n';
 
 export interface BotResponse {
   text: string;
