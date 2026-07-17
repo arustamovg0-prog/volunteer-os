@@ -165,16 +165,17 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600">Профиль директора</p>
-          <h1 className="text-xl font-extrabold text-slate-950 flex items-center gap-2">
-            <BriefcaseBusiness className="w-5 h-5 text-slate-900" />
-            Сотрудники & координаторы
-          </h1>
-          <p className="text-xs text-slate-500">Создание аккаунтов, просмотр профилей и контроль Telegram-привязки штата</p>
-        </div>
+    <>
+      <div className="space-y-6 animate-fade-in pb-12">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600">Профиль директора</p>
+            <h1 className="text-xl font-extrabold text-slate-950 flex items-center gap-2">
+              <BriefcaseBusiness className="w-5 h-5 text-slate-900" />
+              Сотрудники & координаторы
+            </h1>
+            <p className="text-xs text-slate-500">Создание аккаунтов, просмотр профилей и контроль Telegram-привязки штата</p>
+          </div>
 
         <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 border border-slate-200 w-full sm:w-auto">
           <button
@@ -302,6 +303,7 @@ export default function StaffPage() {
           </button>
         </form>
       )}
+    </div>
 
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm animate-fade-in">
@@ -347,7 +349,7 @@ export default function StaffPage() {
           </aside>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

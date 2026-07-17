@@ -287,7 +287,8 @@ export default function VolunteersPage() {
     : [];
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <>
+      <div className="space-y-6 animate-fade-in pb-12">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -507,6 +508,7 @@ export default function VolunteersPage() {
           </div>
         </div>
       )}
+    </div>
 
       {/* Slide-over Volunteer Profile Drawer */}
       {selectedVolunteer && (
@@ -855,6 +857,6 @@ export default function VolunteersPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
