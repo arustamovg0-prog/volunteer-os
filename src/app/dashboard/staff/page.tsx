@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   UserRound,
   X,
+  Trash2,
 } from 'lucide-react';
 
 interface StaffUser {
@@ -119,6 +120,28 @@ export default function StaffPage() {
       setSubmitting(false);
     }
   }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Вы уверены, что хотите полностью удалить этого сотрудника из базы?')) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        fetchStaff();
+        setSelectedUser(null);
+      } else {
+        const payload = await res.json().catch(() => ({}));
+        alert(payload.error || 'Ошибка при удалении');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Ошибка соединения');
+    }
+  };
 
   const stats = useMemo(() => {
     const directors = staff.filter((user) => user.role === 'admin').length;
@@ -283,7 +306,7 @@ export default function StaffPage() {
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm animate-fade-in">
           <button className="flex-1" onClick={() => setSelectedUser(null)} aria-label="Закрыть профиль" />
-          <aside className="w-full max-w-md bg-white border-l border-slate-200 h-full p-6 shadow-2xl overflow-y-auto space-y-6">
+          <aside className="w-full max-w-xl bg-white border-l border-slate-200 h-full p-6 shadow-2xl overflow-y-auto space-y-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-md shrink-0">
@@ -295,9 +318,20 @@ export default function StaffPage() {
                   <p className="text-xs text-slate-500">{selectedUser.role === 'admin' ? 'Директор' : 'Координатор'}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedUser(null)} className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-950">
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {role === 'admin' && (
+                  <button
+                    onClick={() => handleDeleteUser(selectedUser.id)}
+                    className="w-9 h-9 rounded-xl border border-red-100 flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    title="Удалить сотрудника"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                <button onClick={() => setSelectedUser(null)} className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-950 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-3 text-xs">

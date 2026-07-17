@@ -12,7 +12,8 @@ import {
   X,
   Clock,
   Layers,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 import { useApi } from '@/lib/useApi';
 import { useSWRConfig } from 'swr';
@@ -246,6 +247,28 @@ export default function VolunteersPage() {
       setProcessingApp(null);
     }
   }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Вы уверены, что хотите полностью удалить этого пользователя из базы? Это действие необратимо.')) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        mutate('/api/users?role=volunteer');
+        setSelectedVolunteer(null);
+      } else {
+        const payload = await res.json().catch(() => ({}));
+        alert(payload.error || 'Ошибка при удалении');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Ошибка соединения');
+    }
+  };
 
   if (loading) {
     return (
@@ -488,7 +511,7 @@ export default function VolunteersPage() {
       {/* Slide-over Volunteer Profile Drawer */}
       {selectedVolunteer && (
         <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white border-l border-slate-200 h-full p-6 shadow-xl flex flex-col justify-between overflow-y-auto animate-fade-in">
+          <div className="w-full max-w-xl bg-white border-l border-slate-200 h-full p-6 shadow-xl flex flex-col justify-between overflow-y-auto animate-fade-in">
             <div className="space-y-6">
               {/* Drawer Header */}
               <div className="flex items-start justify-between border-b border-slate-100 pb-4">
@@ -496,12 +519,23 @@ export default function VolunteersPage() {
                   <h3 className="text-md font-bold text-slate-900">{selectedVolunteer.full_name}</h3>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">Профиль Волонтера</p>
                 </div>
-                <button 
-                  onClick={() => setSelectedVolunteer(null)}
-                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  {role === 'admin' && (
+                    <button
+                      onClick={() => handleDeleteUser(selectedVolunteer.id)}
+                      className="p-1 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors"
+                      title="Удалить из базы"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setSelectedVolunteer(null)}
+                    className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Contacts info grid */}
