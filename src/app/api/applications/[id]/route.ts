@@ -35,7 +35,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://volunteer-os-zeta.vercel.app';
         const messageText = `Добро пожаловать, ${application.full_name}! Ваш профиль волонтера создан.
-🌐 Платформа: Войти в <a href="${appUrl}/login">Volunteer OS</a>
+🌐 Платформа: ${appUrl}/login
 👤 Логин: <code>${generatedLogin}</code>
 🔑 Пароль: <code>${plainPassword}</code>
 ⚠️ Обязательно сохраните эти данные! Они понадобятся для входа на сайт.
