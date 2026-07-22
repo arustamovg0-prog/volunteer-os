@@ -27,6 +27,8 @@ interface StaffUser {
   rating: number;
   created_at: string;
   avatar_url?: string | null;
+  system_role_id?: string | null;
+  systemRole?: any;
 }
 
 type StaffTab = 'profiles' | 'create';
@@ -46,6 +48,8 @@ export default function StaffPage() {
   const [staffRole, setStaffRole] = useState<'manager' | 'admin'>('manager');
   const [phone, setPhone] = useState('');
   const [telegramId, setTelegramId] = useState('');
+  const [systemRoleId, setSystemRoleId] = useState('');
+  const [systemRoles, setSystemRoles] = useState<any[]>([]);
 
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole') || 'manager';
@@ -56,17 +60,25 @@ export default function StaffPage() {
   async function fetchStaff() {
     setLoading(true);
     try {
-      const res = await fetch('/api/staff', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
+      const [staffRes, rolesRes] = await Promise.all([
+        fetch('/api/staff', { credentials: 'include' }),
+        fetch('/api/roles', { credentials: 'include' })
+      ]);
+      
+      if (staffRes.ok) {
+        const data = await staffRes.json();
         setStaff(Array.isArray(data) ? data : []);
       } else {
-        const payload = await res.json().catch(() => ({}));
+        const payload = await staffRes.json().catch(() => ({}));
         setMessage({ type: 'error', text: payload.error || 'Не удалось загрузить сотрудников.' });
+      }
+
+      if (rolesRes.ok) {
+        setSystemRoles(await rolesRes.json());
       }
     } catch (error) {
       console.error(error);
-      setMessage({ type: 'error', text: 'Ошибка соединения при загрузке сотрудников.' });
+      setMessage({ type: 'error', text: 'Ошибка соединения при загрузке данных.' });
     } finally {
       setLoading(false);
     }
@@ -94,6 +106,7 @@ export default function StaffPage() {
           password,
           phone,
           telegram_id: telegramId ? Number(telegramId) : null,
+          system_role_id: systemRoleId || null,
         }),
       });
 
@@ -273,10 +286,19 @@ export default function StaffPage() {
               <input value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm" placeholder="Например, Алишер Каримов" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Роль *</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Роль (Доступ) *</label>
               <select value={staffRole} onChange={(e) => setStaffRole(e.target.value as 'manager' | 'admin')} className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm">
                 <option value="manager">Координатор</option>
                 <option value="admin">Директор / руководитель</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Кастомная Роль (Функционал)</label>
+              <select value={systemRoleId} onChange={(e) => setSystemRoleId(e.target.value)} className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm">
+                <option value="">Нет (Только базовый доступ)</option>
+                {systemRoles.map(role => (
+                  <option key={role.id} value={role.id}>{role.name}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-1.5">
@@ -341,6 +363,7 @@ export default function StaffPage() {
               <ProfileLine icon={<Phone className="w-4 h-4" />} label="Телефон" value={selectedUser.phone || 'Не указан'} />
               <ProfileLine icon={<Mail className="w-4 h-4" />} label="Telegram ID" value={selectedUser.telegram_id ? String(selectedUser.telegram_id) : 'Не привязан'} />
               <ProfileLine icon={<BadgeCheck className="w-4 h-4" />} label="Дата создания" value={new Date(selectedUser.created_at).toLocaleDateString('ru-RU')} />
+              <ProfileLine icon={<ShieldCheck className="w-4 h-4" />} label="Кастомная Роль" value={selectedUser.systemRole ? selectedUser.systemRole.name : 'Нет (Базовый доступ)'} />
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600 leading-relaxed">

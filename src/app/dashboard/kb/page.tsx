@@ -10,7 +10,13 @@ import {
   FileText,
   Calendar,
   X,
-  Tag
+  Tag,
+  Link,
+  Video,
+  FileIcon,
+  FormInput,
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -21,13 +27,24 @@ interface KBCategory {
   description: string;
 }
 
+interface KBResource {
+  id: string;
+  article_id: string;
+  title: string;
+  url: string;
+  type: 'link' | 'video' | 'document' | 'form';
+  created_at: string;
+}
+
 interface KBArticle {
   id: string;
   category: string;
   title: string;
   content: string;
   file_url?: string | null;
+  source_link?: string | null;
   created_at: string;
+  resources?: KBResource[];
 }
 
 export default function KnowledgeBasePage() {
@@ -59,6 +76,17 @@ export default function KnowledgeBasePage() {
   const [newArticleTitle, setNewArticleTitle] = useState('');
   const [newArticleContent, setNewArticleContent] = useState('');
   const [newArticleCategory, setNewArticleCategory] = useState('');
+  const [newArticleSourceLink, setNewArticleSourceLink] = useState('');
+
+  const [editSourceLink, setEditSourceLink] = useState('');
+
+  // Resources State
+  const [resources, setResources] = useState<KBResource[]>([]);
+  const [showAddResource, setShowAddResource] = useState(false);
+  const [newResTitle, setNewResTitle] = useState('');
+  const [newResUrl, setNewResUrl] = useState('');
+  const [newResType, setNewResType] = useState<KBResource['type']>('link');
+  const [resLoading, setResLoading] = useState(false);
 
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole');
@@ -123,9 +151,48 @@ export default function KnowledgeBasePage() {
       setEditTitle(data.title);
       setEditContent(data.content);
       setEditCategory(data.category);
+      setEditSourceLink(data.source_link || '');
       setIsEditing(false);
+      // Load resources
+      setResources(data.resources || []);
+      setShowAddResource(false);
     } catch (e) {
       console.error('Failed to load article details', e);
+    }
+  }
+
+  async function handleAddResource(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedArticle || !newResTitle.trim() || !newResUrl.trim()) return;
+    setResLoading(true);
+    try {
+      const res = await fetch(`/api/kb/articles/${selectedArticle.id}/resources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newResTitle, url: newResUrl, type: newResType })
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setResources(prev => [...prev, created]);
+        setNewResTitle('');
+        setNewResUrl('');
+        setNewResType('link');
+        setShowAddResource(false);
+      }
+    } catch (e) {
+      console.error('Failed to add resource', e);
+    } finally {
+      setResLoading(false);
+    }
+  }
+
+  async function handleDeleteResource(id: string) {
+    if (!selectedArticle) return;
+    try {
+      await fetch(`/api/kb/articles/${selectedArticle.id}/resources/${id}`, { method: 'DELETE' });
+      setResources(prev => prev.filter(r => r.id !== id));
+    } catch (e) {
+      console.error('Failed to delete resource', e);
     }
   }
 
@@ -164,7 +231,9 @@ export default function KnowledgeBasePage() {
         body: JSON.stringify({
           category: categoryToUse,
           title: newArticleTitle,
-          content: newArticleContent
+          content: newArticleContent,
+          source_link: newArticleSourceLink,
+          media_type: newArticleSourceLink ? 'video' : null
         })
       });
       if (res.ok) {
@@ -172,6 +241,7 @@ export default function KnowledgeBasePage() {
         setShowNewArticleModal(false);
         setNewArticleTitle('');
         setNewArticleContent('');
+        setNewArticleSourceLink('');
         
         // If article was created in a different category, switch to it
         if (categoryToUse !== selectedCategoryId) {
@@ -195,7 +265,9 @@ export default function KnowledgeBasePage() {
         body: JSON.stringify({
           title: editTitle,
           content: editContent,
-          category: editCategory
+          category: editCategory,
+          source_link: editSourceLink,
+          media_type: editSourceLink ? 'video' : null
         })
       });
       if (res.ok) {
@@ -381,6 +453,7 @@ export default function KnowledgeBasePage() {
                       Сохранить
                     </button>
                   </div>
+                  
                 </div>
 
                 <div className="space-y-1.5">
@@ -404,6 +477,17 @@ export default function KnowledgeBasePage() {
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Ссылка на медиа / Видео-урок (Опционально)</label>
+                  <input
+                    type="url"
+                    value={editSourceLink}
+                    onChange={(e) => setEditSourceLink(e.target.value)}
+                    placeholder="Например, ссылка на YouTube"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                  />
                 </div>
 
                 <div className="flex-1 flex flex-col space-y-1.5 min-h-[300px]">
@@ -437,6 +521,7 @@ export default function KnowledgeBasePage() {
                         setEditTitle(selectedArticle.title);
                         setEditContent(selectedArticle.content);
                         setEditCategory(selectedArticle.category);
+                        setEditSourceLink(selectedArticle.source_link || '');
                         setIsEditing(true);
                       }}
                       className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold flex items-center gap-1.5 transition-all"
@@ -459,6 +544,30 @@ export default function KnowledgeBasePage() {
                       prose-ul:list-disc prose-ul:pl-5 prose-ol:list-decimal prose-ol:pl-5"
                     dangerouslySetInnerHTML={renderMarkdown(selectedArticle.content)}
                   />
+
+                  {/* Media Preview */}
+                  {selectedArticle.source_link && (
+                    <div className="mt-6">
+                      <h4 className="text-xs font-bold text-slate-900 mb-3 uppercase tracking-wider">Видео-урок</h4>
+                      <div className="aspect-video w-full rounded-xl overflow-hidden border border-slate-200 shadow-sm bg-slate-900">
+                        {selectedArticle.source_link.includes('youtube.com') || selectedArticle.source_link.includes('youtu.be') ? (
+                          <iframe 
+                            src={selectedArticle.source_link.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')} 
+                            className="w-full h-full"
+                            allowFullScreen
+                            title="Video Lesson"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400">
+                            <BookOpen className="w-8 h-8 mb-2" />
+                            <a href={selectedArticle.source_link} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline text-sm font-medium">
+                              Перейти к внешнему материалу
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )
@@ -560,7 +669,18 @@ export default function KnowledgeBasePage() {
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
-                </select>
+                  </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-500 font-medium">Ссылка на медиа / Видео-урок (Опционально)</label>
+                <input
+                  type="url"
+                  placeholder="https://youtube.com/watch?v=..."
+                  value={newArticleSourceLink}
+                  onChange={(e) => setNewArticleSourceLink(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs placeholder:text-slate-400 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                />
               </div>
 
               <div className="space-y-1.5">

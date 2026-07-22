@@ -54,6 +54,9 @@ interface CheckIn {
   text_report: string;
   hours: number;
   created_at: string;
+  status: string;
+  feedback?: string | null;
+  check_out_at?: string | null;
 }
 
 interface OperationsOverview {
@@ -404,13 +407,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Check-ins List (Right 1 Column) */}
+        {/* Check-ins Monitor (Right 1 Column) */}
         <div className="space-y-6">
           <div className="glass-panel p-6 bg-white flex flex-col h-full">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <MessageSquareCode className="w-4 h-4 text-slate-900" />
-                <h3 className="font-bold text-slate-900 text-sm">{t('dashboard.checkins_stream')}</h3>
+                <Activity className="w-4 h-4 text-slate-900" />
+                <h3 className="font-bold text-slate-900 text-sm">Мониторинг Чекинов</h3>
               </div>
               <Link 
                 href="/dashboard/reports" 
@@ -425,26 +428,69 @@ export default function DashboardPage() {
                 {t('dashboard.no_reports_yet')}
               </div>
             ) : (
-              <div className="space-y-4 overflow-y-auto max-h-[380px] pr-1">
-                {checkins.slice(0, 4).map((report) => {
+              <div className="space-y-4 overflow-y-auto max-h-[420px] pr-1">
+                {checkins.slice(0, 10).map((report) => {
                   const volunteer = users.find(u => u.id === report.user_id);
                   const project = projects.find(p => p.id === report.project_id);
+                  
+                  // Status visualization
+                  const isBlocked = report.status === 'rejected' && report.feedback?.includes('Geofence block');
+                  const isActive = report.status === 'pending' && !report.text_report;
+                  const isCompleted = report.text_report !== null && report.text_report !== undefined && !isActive && !isBlocked;
+
+                  let statusClasses = "border-slate-100 bg-white";
+                  let statusBadge = null;
+
+                  if (isBlocked) {
+                    statusClasses = "border-red-100 bg-red-50/30";
+                    statusBadge = <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-red-100 text-red-700">БЛОКИРОВКА</span>;
+                  } else if (isActive) {
+                    statusClasses = "border-amber-100 bg-amber-50/30";
+                    statusBadge = <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-100 text-amber-700">АКТИВЕН</span>;
+                  } else {
+                    statusBadge = <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-100 text-emerald-700">ЗАВЕРШЕН</span>;
+                  }
 
                   return (
-                    <div key={report.id} className="p-3.5 rounded-xl border border-slate-100 bg-white space-y-2">
+                    <div key={report.id} className={`p-3.5 rounded-xl border space-y-2 ${statusClasses}`}>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-900 truncate max-w-[120px]">{volunteer?.full_name}</span>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
-                          {report.hours} ч.
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-slate-900 truncate max-w-[120px]">{volunteer?.full_name || 'Неизвестно'}</span>
+                          {statusBadge}
+                        </div>
+                        {report.hours > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                            {report.hours} ч.
+                          </span>
+                        )}
                       </div>
                       <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
                         {t('dashboard.project')} <span className="text-slate-600">{project ? project.title : t('dashboard.unknown')}</span>
                       </p>
-                      <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                        {report.text_report}
-                      </p>
-                      <div className="text-[9px] text-slate-400 text-right">
+                      
+                      {isBlocked && (
+                        <p className="text-xs text-red-700 font-medium leading-relaxed bg-red-50 p-2.5 rounded-lg border border-red-100">
+                          {report.feedback}
+                        </p>
+                      )}
+                      
+                      {isActive && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                          </span>
+                          <span className="text-[10px] text-amber-700 font-medium">Волонтер на локации</span>
+                        </div>
+                      )}
+
+                      {isCompleted && report.text_report && (
+                        <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                          {report.text_report}
+                        </p>
+                      )}
+
+                      <div className="text-[9px] text-slate-400 text-right mt-2">
                         {new Date(report.created_at).toLocaleString('ru-RU')}
                       </div>
                     </div>

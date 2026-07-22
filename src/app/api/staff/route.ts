@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const { role, full_name, login, password, phone, telegram_id, avatar_url } = body;
+    const { role, full_name, login, password, phone, telegram_id, avatar_url, system_role_id } = body;
 
     if (!['admin', 'manager'].includes(role)) {
       return NextResponse.json({ error: 'Можно создать только директора или координатора' }, { status: 400 });
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
       skills: [],
       interests: [],
       avatar_url: avatar_url || null,
+      system_role_id: system_role_id || null,
     });
 
     return NextResponse.json(publicUser(user), { status: 201 });

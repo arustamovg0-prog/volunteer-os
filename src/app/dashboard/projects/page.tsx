@@ -59,6 +59,9 @@ export default function ProjectsPage() {
   const [status, setStatus] = useState<'planning' | 'active' | 'completed'>('planning');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [latitude, setLatitude] = useState<string>('');
+  const [longitude, setLongitude] = useState<string>('');
+  const [allowedRadiusKm, setAllowedRadiusKm] = useState<string>('0.5');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Coordinator assignment
@@ -111,7 +114,10 @@ export default function ProjectsPage() {
           description,
           status,
           start_date: startDate ? new Date(startDate).toISOString() : null,
-          end_date: endDate ? new Date(endDate).toISOString() : null
+          end_date: endDate ? new Date(endDate).toISOString() : null,
+          latitude: latitude ? parseFloat(latitude) : null,
+          longitude: longitude ? parseFloat(longitude) : null,
+          allowed_radius_km: parseFloat(allowedRadiusKm)
         })
       });
 
@@ -121,6 +127,9 @@ export default function ProjectsPage() {
         setDescription('');
         setStartDate('');
         setEndDate('');
+        setLatitude('');
+        setLongitude('');
+        setAllowedRadiusKm('0.5');
         mutate('/api/projects');
       }
     } catch (err) {
@@ -372,6 +381,55 @@ export default function ProjectsPage() {
                     onChange={(e) => setEndDate(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 border-t border-slate-100 pt-4 mt-2">
+                <div className="space-y-1.5 col-span-3">
+                  <label className="text-xs text-slate-900 font-bold block flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    Гео-Чекин (Координаты)
+                  </label>
+                  <p className="text-[10px] text-slate-500">Укажите координаты места проведения для включения проверки локации.</p>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-[11px] text-slate-500 font-semibold block">Широта (Lat)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="41.2995"
+                    value={latitude}
+                    onChange={(e) => setLatitude(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] text-slate-500 font-semibold block">Долгота (Lng)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="69.2401"
+                    value={longitude}
+                    onChange={(e) => setLongitude(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] text-slate-500 font-semibold block">Радиус (км)</label>
+                  <select
+                    value={allowedRadiusKm}
+                    onChange={(e) => setAllowedRadiusKm(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900"
+                  >
+                    <option value="0.2">200 м</option>
+                    <option value="0.5">500 м</option>
+                    <option value="1">1 км</option>
+                    <option value="2">2 км</option>
+                    <option value="5">5 км</option>
+                  </select>
                 </div>
               </div>
 

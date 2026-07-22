@@ -75,18 +75,66 @@ export default function VolunteersPage() {
 
   // Selected Volunteer for the slide-over drawer
   const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
+  const [volunteerGoals, setVolunteerGoals] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (selectedVolunteer) {
+      fetch(`/api/kpi/goals?userId=${selectedVolunteer.id}`)
+        .then(res => res.json())
+        .then(data => setVolunteerGoals(data || []))
+        .catch(err => console.error(err));
+    } else {
+      setVolunteerGoals([]);
+    }
+  }, [selectedVolunteer]);
 
   // New Volunteer Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [telegramId, setTelegramId] = useState('');
+  const [isPhysicallyReady, setIsPhysicallyReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Review form state
   const [reviewKpi, setReviewKpi] = useState(5);
   const [reviewFeedback, setReviewFeedback] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [isGeneratingDoc, setIsGeneratingDoc] = useState(false);
+
+  const handleGenerateDocument = async (type: 'contract' | 'certificate', projectId?: string) => {
+    if (!selectedVolunteer) return;
+    setIsGeneratingDoc(true);
+    try {
+      const res = await fetch('/api/documents/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedVolunteer.id,
+          type,
+          projectId
+        })
+      });
+
+      if (!res.ok) throw new Error('Generation failed');
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${type}_${selectedVolunteer.full_name}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при генерации документа');
+    } finally {
+      setIsGeneratingDoc(false);
+    }
+  };
 
   // Check-in grading form state
   const [gradingCheckInId, setGradingCheckInId] = useState<string | null>(null);
@@ -204,7 +252,8 @@ export default function VolunteersPage() {
           full_name: fullName,
           phone: cleanPhone,
           role: 'volunteer',
-          telegram_id: telegramId ? parseInt(telegramId) : null
+          telegram_id: telegramId ? parseInt(telegramId) : null,
+          is_physically_ready: isPhysicallyReady
         })
       });
 
@@ -213,12 +262,35 @@ export default function VolunteersPage() {
         setFullName('');
         setPhone('');
         setTelegramId('');
+        setIsPhysicallyReady(false);
         mutate('/api/users?role=volunteer');
       }
     } catch (err) {
       console.error(err);
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleDeleteVolunteer(id: string) {
+    if (!confirm('Вы уверены, что хотите удалить этого волонтера? Это действие необратимо.')) return;
+    
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/users/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setSelectedVolunteer(null);
+        mutate('/api/users?role=volunteer');
+      } else {
+        alert('Ошибка при удалении волонтера. Возможно, у вас нет прав.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Ошибка при удалении волонтера.');
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -344,6 +416,7 @@ export default function VolunteersPage() {
                   <th className="py-4 px-4">Контакты</th>
                   <th className="py-4 px-4">Задачи (Вып. / Актив.)</th>
                   <th className="py-4 px-4">Всего часов</th>
+                  <th className="py-4 px-4 text-center">Готовность к физ. труду</th>
                   <th className="py-4 px-6 text-right">Рейтинг волонтера</th>
                 </tr>
               </thead>
@@ -408,6 +481,15 @@ export default function VolunteersPage() {
                         {volHours.toFixed(1)} ч.
                       </td>
 
+                      {/* Physical Readiness */}
+                      <td className="py-4 px-4 text-center">
+                        {user.is_physically_ready ? (
+                          <span className="px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded text-[10px] font-semibold">Да</span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-slate-50 text-slate-500 border border-slate-200 rounded text-[10px]">Нет</span>
+                        )}
+                      </td>
+
                       {/* Rating */}
                       <td className="py-4 px-6 text-right">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border font-bold text-xs ${ratingColors}`}>
@@ -433,6 +515,7 @@ export default function VolunteersPage() {
                   <th className="py-4 px-4">Возраст</th>
                   <th className="py-4 px-4">Языки / Навыки</th>
                   <th className="py-4 px-4">Инвалидность</th>
+                  <th className="py-4 px-4 text-center">Готовность к физ. труду</th>
                   <th className="py-4 px-6 text-right">Действия</th>
                 </tr>
               </thead>
@@ -473,6 +556,13 @@ export default function VolunteersPage() {
                         </span>
                       ) : (
                         <span className="text-slate-400 text-[10px]">Нет</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      {app.is_physically_ready ? (
+                        <span className="px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded text-[10px] font-semibold">Да</span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-slate-50 text-slate-500 border border-slate-200 rounded text-[10px]">Нет</span>
                       )}
                     </td>
                     <td className="py-4 px-6 text-right">
@@ -599,6 +689,42 @@ export default function VolunteersPage() {
                         </span>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* KPI Goals logs */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Target className="w-3.5 h-3.5" />
+                  Цели KPI ({volunteerGoals.length})
+                </h4>
+                {volunteerGoals.length === 0 ? (
+                  <p className="text-center py-4 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl">Цели не установлены</p>
+                ) : (
+                  <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1">
+                    {volunteerGoals.map(goal => {
+                      const progress = Math.min(Math.round((goal.currentValue / goal.targetValue) * 100), 100);
+                      return (
+                        <div key={goal.id} className="p-3 rounded-lg border border-slate-100 bg-white text-xs">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-semibold text-slate-900">{goal.parameter?.name}</p>
+                              <span className="text-[9px] text-slate-400 block mt-0.5">
+                                {new Date(goal.periodStart).toLocaleDateString()} — {new Date(goal.periodEnd).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-bold text-slate-900">{goal.currentValue}</span>
+                              <span className="text-slate-500 text-[10px]"> / {goal.targetValue} {goal.parameter?.unit}</span>
+                            </div>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-1.5">
+                            <div className={`h-1.5 rounded-full ${progress >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }}></div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -782,10 +908,40 @@ export default function VolunteersPage() {
               )}
             </div>
 
-            <div className="mt-8 border-t border-slate-150 pt-4">
+            <div className="mt-6 border-t border-slate-150 pt-4 space-y-2">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Документы</h4>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleGenerateDocument('contract')}
+                  disabled={isGeneratingDoc}
+                  className="flex-1 py-1.5 px-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Договор
+                </button>
+                <button
+                  onClick={() => handleGenerateDocument('certificate')}
+                  disabled={isGeneratingDoc}
+                  className="flex-1 py-1.5 px-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors"
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  Сертификат
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-8 border-t border-slate-150 pt-4 flex gap-2">
+              <button 
+                onClick={() => handleDeleteVolunteer(selectedVolunteer.id)}
+                disabled={isDeleting}
+                className="flex items-center justify-center gap-1 w-1/3 py-2.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-semibold text-xs rounded-xl transition-colors disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {isDeleting ? '...' : 'Удалить'}
+              </button>
               <button 
                 onClick={() => setSelectedVolunteer(null)}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow transition-colors"
+                className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl shadow transition-colors"
               >
                 Закрыть
               </button>
@@ -835,6 +991,19 @@ export default function VolunteersPage() {
                   onChange={(e) => setTelegramId(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-950 text-xs placeholder:text-slate-400 focus:outline-none focus:border-slate-900"
                 />
+              </div>
+
+              <div className="space-y-1.5 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isPhysicallyReady"
+                  checked={isPhysicallyReady}
+                  onChange={(e) => setIsPhysicallyReady(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                <label htmlFor="isPhysicallyReady" className="text-xs text-slate-700 font-semibold cursor-pointer">
+                  Готов к физическому труду
+                </label>
               </div>
 
               <div className="flex gap-3 pt-4 justify-end">

@@ -69,8 +69,10 @@ interface CheckIn {
   id: string;
   user_id: string;
   project_id?: string | null;
-  text_report: string;
-  hours: number;
+  text_report?: string | null;
+  hours?: number | null;
+  check_in_at?: string | null;
+  check_out_at?: string | null;
   created_at: string;
 }
  
@@ -99,8 +101,12 @@ export default function VolunteerDashboard() {
   // Report Modal Form State
   const [reportingTask, setReportingTask] = useState<Task | null>(null);
   const [reportText, setReportText] = useState('');
-  const [reportHours, setReportHours] = useState<string>('1');
+  const [reportHours, setReportHours] = useState('1');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  
+  // Geofenced Check-in State
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [activeCheckInId, setActiveCheckInId] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
  
   useEffect(() => {
@@ -237,6 +243,53 @@ export default function VolunteerDashboard() {
     }
   };
 
+  const handleStartCheckIn = async (projectId: string) => {
+    if (!volunteerId) return;
+    setIsCheckingIn(true);
+    
+    try {
+      if (!navigator.geolocation) {
+        throw new Error('Геолокация не поддерживается вашим браузером');
+      }
+      
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+
+      const res = await fetch('/api/checkins/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: volunteerId,
+          projectId,
+          latitude,
+          longitude
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Ошибка при чекине');
+      }
+
+      setAlertMessage('Успешный чекин! Смена началась.');
+      setTimeout(() => setAlertMessage(null), 3000);
+      if (volunteerId) loadInitialData(volunteerId);
+    } catch (err: any) {
+      console.error(err);
+      setAlertMessage(`Ошибка: ${err.message}`);
+      setTimeout(() => setAlertMessage(null), 4000);
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
   const handleSubmitReport = async (e: React.FormEvent) => {
     e.preventDefault();
     const hoursNum = parseFloat(reportHours);
@@ -244,15 +297,29 @@ export default function VolunteerDashboard() {
     setIsSubmittingReport(true);
 
     try {
-      // 1. Submit check-in report
-      const checkinRes = await fetch('/api/checkins', {
+      let finalLat = undefined;
+      let finalLng = undefined;
+
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+        });
+        finalLat = pos.coords.latitude;
+        finalLng = pos.coords.longitude;
+      } catch (e) {
+        // Geolocation failed on checkout, proceed anyway
+      }
+
+      // 1. Submit check-in report (checkout)
+      const checkinRes = await fetch('/api/checkins/end', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: volunteerId,
-          project_id: reportingTask.project_id,
+          checkInId: activeCheckInId,
           text_report: reportText,
-          hours: hoursNum
+          hours: hoursNum,
+          latitude: finalLat,
+          longitude: finalLng
         })
       });
 
@@ -667,6 +734,7 @@ export default function VolunteerDashboard() {
           filteredTasks.map((task) => {
             const deadlineState = getDeadlineState(task);
             const project = projects.find(p => p.id === task.project_id);
+            const activeCheckIn = checkins.find(c => c.project_id === task.project_id && !c.check_out_at);
 
             const cardBorder = {
               overdue: 'border-red-200 bg-red-50/20',
@@ -717,12 +785,27 @@ export default function VolunteerDashboard() {
                     </button>
                   )}
                   {task.status === 'accepted' && (
-                    <button
-                      onClick={() => setReportingTask(task)}
-                      className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold transition-all shadow-sm cursor-pointer"
-                    >
-                      Сдать отчет
-                    </button>
+                    <div className="flex gap-2">
+                      {!activeCheckIn ? (
+                        <button
+                          onClick={() => handleStartCheckIn(task.project_id!)}
+                          disabled={isCheckingIn}
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                        >
+                          📍 Начать смену
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setActiveCheckInId(activeCheckIn.id);
+                            setReportingTask(task);
+                          }}
+                          className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1"
+                        >
+                          🏁 Завершить смену
+                        </button>
+                      )}
+                    </div>
                   )}
                   {task.status === 'completed' && (
                     <span className="text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg text-[9px] font-bold">

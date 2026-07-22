@@ -13,7 +13,8 @@ export interface TelegramButton {
 export async function sendTelegramMessage(
   telegramId: number,
   text: string,
-  keyboard?: TelegramButton[][]
+  keyboard?: TelegramButton[][],
+  parseMode: 'Markdown' | 'HTML' = 'Markdown'
 ): Promise<boolean> {
   const config = await db.getBotConfig();
   const token = config.bot_token || process.env.TELEGRAM_BOT_TOKEN;
@@ -61,7 +62,7 @@ export async function sendTelegramMessage(
       const body = {
         chat_id: telegramId,
         text,
-        parse_mode: 'Markdown',
+        parse_mode: parseMode,
         reply_markup: replyMarkup
       };
 

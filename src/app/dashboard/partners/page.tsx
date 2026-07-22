@@ -30,6 +30,15 @@ interface Partner {
   created_at: string;
 }
 
+interface PartnerActivity {
+  id: string;
+  partnerId: string;
+  eventName: string;
+  description: string | null;
+  date: string;
+  createdAt: string;
+}
+
 export default function PartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [search, setSearch] = useState('');
@@ -48,6 +57,17 @@ export default function PartnersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [mutatingPartnerId, setMutatingPartnerId] = useState<string | null>(null);
   const [formMessage, setFormMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Activities state
+  const [showActivitiesModal, setShowActivitiesModal] = useState(false);
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
+  const [activities, setActivities] = useState<PartnerActivity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
+  
+  const [actEventName, setActEventName] = useState('');
+  const [actDescription, setActDescription] = useState('');
+  const [actDate, setActDate] = useState('');
+  const [submittingAct, setSubmittingAct] = useState(false);
 
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole') || 'manager';
@@ -137,6 +157,44 @@ export default function PartnersPage() {
       setFormMessage({ type: 'error', text: 'Ошибка соединения при сохранении партнера.' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openActivities = async (p: Partner) => {
+    setSelectedPartner(p);
+    setShowActivitiesModal(true);
+    setLoadingActivities(true);
+    try {
+      const res = await fetch(`/api/partners/${p.id}/activities`);
+      if (res.ok) setActivities(await res.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingActivities(false);
+    }
+  };
+
+  const handleAddActivity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPartner || !actEventName) return;
+    setSubmittingAct(true);
+    try {
+      const res = await fetch(`/api/partners/${selectedPartner.id}/activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventName: actEventName, description: actDescription, date: actDate })
+      });
+      if (res.ok) {
+        const newAct = await res.json();
+        setActivities([newAct, ...activities]);
+        setActEventName('');
+        setActDescription('');
+        setActDate('');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmittingAct(false);
     }
   };
 
@@ -359,6 +417,16 @@ export default function PartnersPage() {
                       </p>
                     )}
                   </div>
+                  
+                  <div className="pt-2">
+                    <button
+                      onClick={() => openActivities(p)}
+                      className="w-full px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 border border-blue-100"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      История участия
+                    </button>
+                  </div>
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -506,6 +574,67 @@ export default function PartnersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Activities Modal */}
+      {showActivitiesModal && selectedPartner && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-blue-500" />
+                История: {selectedPartner.name}
+              </h3>
+              <button onClick={() => setShowActivitiesModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            
+            <div className="p-5 overflow-y-auto flex-1 space-y-4">
+              {/* Add Activity Form */}
+              <form onSubmit={handleAddActivity} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Новое мероприятие</h4>
+                <div>
+                  <input required type="text" placeholder="Название мероприятия / проекта" value={actEventName} onChange={e => setActEventName(e.target.value)} className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900" />
+                </div>
+                <div>
+                  <textarea placeholder="Как именно помог партнер? Описание поддержки (необязательно)" value={actDescription} onChange={e => setActDescription(e.target.value)} className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900 resize-none h-16"></textarea>
+                </div>
+                <div className="flex gap-3">
+                  <input required type="date" value={actDate} onChange={e => setActDate(e.target.value)} className="w-1/2 p-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-900" />
+                  <button type="submit" disabled={submittingAct} className="w-1/2 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    {submittingAct ? 'Добавление...' : 'Добавить в историю'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Timeline */}
+              <div className="space-y-4 relative pt-4">
+                <div className="absolute left-[11px] top-6 bottom-0 w-0.5 bg-slate-200"></div>
+                {loadingActivities ? (
+                  <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>
+                ) : activities.length === 0 ? (
+                  <p className="text-center text-sm text-slate-500 py-6">История участия пока пуста.</p>
+                ) : (
+                  activities.map((act) => (
+                    <div key={act.id} className="relative pl-8">
+                      <div className="absolute left-0 top-1.5 w-6 h-6 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                        <div className="flex justify-between items-start mb-1">
+                          <h5 className="font-bold text-slate-900 text-sm">{act.eventName}</h5>
+                          <span className="text-[10px] text-slate-500 font-medium px-2 py-0.5 bg-slate-100 rounded-md">
+                            {new Date(act.date).toLocaleDateString('ru-RU')}
+                          </span>
+                        </div>
+                        {act.description && <p className="text-xs text-slate-600">{act.description}</p>}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

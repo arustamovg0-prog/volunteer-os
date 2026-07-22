@@ -3,6 +3,7 @@ import { handleBotUpdate } from '@/lib/bot-logic';
 import { db } from '@/lib/db';
 import { rateLimitRequest, validateTelegramSecret } from '@/lib/security';
 import { generateLeaderKnowledgeAnswer, isLeaderMention } from '@/lib/leader-ai';
+import { waitUntil } from '@vercel/functions';
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
         text = '';
       } else if (update.message.voice) {
         text = '[Голосовое сообщение] Выполнена работа по задаче.';
+      } else if (update.message.location) {
+        text = `[Локация] ${update.message.location.latitude},${update.message.location.longitude}`;
       } else {
         text = update.message.text || '';
       }
@@ -53,11 +56,11 @@ export async function POST(req: NextRequest) {
         const groupTitle = update.message?.chat?.title || 'Telegram группа';
         const author = update.message?.from?.username ? `@${update.message.from.username}` : (update.message?.from?.first_name || 'участник');
         const groupText = `[Группа: ${groupTitle}] ${author}: ${text}`;
-        await db.createMockMessage(telegramId, 'user', groupText);
+        waitUntil(db.createMockMessage(telegramId, 'user', groupText).catch(e => console.error('Failed to save group mock message:', e)));
 
         if (isLeaderMention(text)) {
           const answer = await generateLeaderKnowledgeAnswer(groupText);
-          await db.createMockMessage(telegramId, 'bot', answer.text);
+          waitUntil(db.createMockMessage(telegramId, 'bot', answer.text).catch(e => console.error('Failed to save bot mock message:', e)));
 
           return NextResponse.json({
             method: 'sendMessage',
@@ -70,44 +73,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Save message to simulator history as user input
-    try {
-      if (text || phone) {
-        await db.createMockMessage(
+    // Save message to simulator history as user input (in background)
+    if (text || phone) {
+      waitUntil(
+        db.createMockMessage(
           telegramId,
           'user',
           phone ? `📱 [Поделился контактом: ${phone}]` : text
-        );
-      }
-    } catch (e) {
-      console.error('Failed to save user mock message:', e);
+        ).catch(e => console.error('Failed to save user mock message:', e))
+      );
     }
 
     // Process update through the state-machine
     const response = await handleBotUpdate(telegramId, text, username, phone, firstName, lastName);
 
-    // Save bot response to simulator history
-    try {
-      await db.createMockMessage(
+    // Save bot response to simulator history (in background)
+    waitUntil(
+      db.createMockMessage(
         telegramId,
         'bot',
         response.text,
         response.keyboard
-      );
-    } catch (e) {
-      console.error('Failed to save bot mock message:', e);
-    }
+      ).catch(e => console.error('Failed to save bot mock message:', e))
+    );
 
     // Format reply markup for Telegram
     let replyMarkup: any = undefined;
     if (response.keyboard) {
-      const hasContactRequest = response.keyboard.some(row => row.some(btn => btn.request_contact));
-      if (hasContactRequest) {
+      const hasSpecialRequest = response.keyboard.some(row => row.some(btn => btn.request_contact || btn.request_location));
+      if (hasSpecialRequest) {
         replyMarkup = {
           keyboard: response.keyboard.map(row => 
             row.map(btn => ({
               text: btn.text,
-              request_contact: btn.request_contact
+              request_contact: btn.request_contact,
+              request_location: btn.request_location
             }))
           ),
           one_time_keyboard: true,

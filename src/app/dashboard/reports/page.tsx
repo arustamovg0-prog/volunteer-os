@@ -13,7 +13,9 @@ import {
   User as UserIcon,
   Folder,
   MessageSquare,
-  ShieldAlert
+  ShieldAlert,
+  CheckCircle,
+  Activity
 } from 'lucide-react';
 
 interface CheckIn {
@@ -22,6 +24,9 @@ interface CheckIn {
   project_id?: string | null;
   text_report: string;
   hours: number;
+  status: string;
+  check_in_at: string;
+  check_out_at?: string;
   created_at: string;
 }
 
@@ -302,14 +307,28 @@ export default function ReportsPage() {
                 <div className="space-y-3 flex-1 min-w-0">
                   {/* Top line with labels */}
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-slate-500" />
-                      {item.hours} ч.
-                    </span>
+                    {item.status === 'rejected' ? (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-100 text-red-700 border border-red-200 flex items-center gap-1">
+                        <ShieldAlert className="w-3 h-3 text-red-600" />
+                        Отклонено
+                      </span>
+                    ) : item.check_out_at ? (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-green-100 text-green-700 border border-green-200 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-green-600" />
+                        Смена закрыта ({item.hours} ч.)
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-100 text-orange-700 border border-orange-200 flex items-center gap-1">
+                        <Activity className="w-3 h-3 text-orange-600" />
+                        Смена активна
+                      </span>
+                    )}
                     
                     <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      {new Date(item.created_at).toLocaleString('ru-RU')}
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      {new Date(item.check_in_at || item.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                      {item.check_out_at && ` - ${new Date(item.check_out_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`}
+                      <span className="ml-1 opacity-50">({new Date(item.created_at).toLocaleDateString('ru-RU')})</span>
                     </span>
                   </div>
 
@@ -341,10 +360,17 @@ export default function ReportsPage() {
                   </div>
 
                   {/* Report comments */}
-                  <div className="flex gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-700 leading-relaxed italic">
-                    <MessageSquare className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                    <span>"{item.text_report}"</span>
-                  </div>
+                  {item.text_report ? (
+                    <div className="flex gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-700 leading-relaxed italic">
+                      <MessageSquare className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                      <span>"{item.text_report}"</span>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 p-3 rounded-xl bg-orange-50/50 border border-orange-100 text-[11px] text-orange-600 leading-relaxed italic">
+                      <Activity className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
+                      <span>Волонтер на смене. Отчет будет добавлен после чекаута.</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Right-aligned meta details */}

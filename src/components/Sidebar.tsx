@@ -12,6 +12,7 @@ import {
   BookOpen, 
   FileSpreadsheet, 
   ShieldCheck,
+  Shield,
   UserCircle2,
   CalendarDays,
   MessageSquare,
@@ -83,8 +84,10 @@ export default function Sidebar() {
     ...(role === 'admin' ? [
       { name: t('sidebar.monitor'), path: '/dashboard/monitor', icon: Activity },
       { name: t('sidebar.staff'), path: '/dashboard/staff', icon: BriefcaseBusiness },
+      { name: t('sidebar.roles') || 'Роли и Доступы', path: '/dashboard/roles', icon: Shield },
       { name: t('sidebar.finance'), path: '/dashboard/finance', icon: Calculator },
       { name: t('sidebar.reports'), path: '/dashboard/reports', icon: FileSpreadsheet },
+      { name: t('sidebar.kpi') || 'Управление KPI', path: '/dashboard/kpi', icon: Activity },
       { name: t('sidebar.bot_settings'), path: '/dashboard/bot-settings', icon: Settings }
     ] : []),
   ];

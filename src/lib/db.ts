@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { encryptSecret } from './security';
 
+const USE_PRISMA = true;
 // DB Types (exported for codebase compatibility)
 export interface User {
   id: string;
@@ -27,6 +28,9 @@ export interface User {
   availability_status?: 'offline' | 'available' | 'busy';
   available_until?: string | null;
   availability_note?: string | null;
+  is_physically_ready?: boolean;
+  system_role_id?: string | null;
+  systemRole?: any;
 }
 
 export interface VolunteerApplication {
@@ -34,11 +38,14 @@ export interface VolunteerApplication {
   telegram_id: number;
   language_pref: string;
   full_name: string;
-  date_of_birth: string;
+  date_of_birth?: string;
   phone: string;
+  projects: string[];
   spoken_languages: string[];
   has_disability: boolean;
   disability_info?: string | null;
+  is_physically_ready: boolean;
+  referral_info?: string | null;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
 }
@@ -52,8 +59,9 @@ export interface Project {
   end_date?: string | null;
   org_id?: string | null;
   created_at: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
+  allowed_radius_km?: number;
 }
 
 export interface Task {
@@ -71,8 +79,14 @@ export interface CheckIn {
   id: string;
   user_id: string;
   project_id?: string | null;
-  text_report: string;
-  hours: number;
+  check_in_at: string;
+  check_out_at?: string;
+  check_in_lat?: number;
+  check_in_lng?: number;
+  check_out_lat?: number;
+  check_out_lng?: number;
+  text_report?: string;
+  hours?: number;
   created_at: string;
   kpi_score?: number;
   feedback?: string;
@@ -97,6 +111,18 @@ export interface KnowledgeBase {
   title: string;
   content: string;
   file_url?: string | null;
+  media_type?: string | null;
+  source_link?: string | null;
+  created_at: string;
+  resources?: KBResource[];
+}
+
+export interface KBResource {
+  id: string;
+  article_id: string;
+  title: string;
+  url: string;
+  type: 'link' | 'video' | 'document' | 'form';
   created_at: string;
 }
 
@@ -367,7 +393,10 @@ function mapUser(u: any): User {
     available_until: u.availableUntil
       ? (u.availableUntil instanceof Date ? u.availableUntil.toISOString() : u.availableUntil)
       : (u.available_until || null),
-    availability_note: u.availabilityNote || u.availability_note || null
+    availability_note: u.availabilityNote || u.availability_note || null,
+    is_physically_ready: u.isPhysicallyReady ?? u.is_physically_ready ?? false,
+    system_role_id: u.systemRoleId || u.system_role_id || null,
+    systemRole: u.systemRole || null
   };
 }
 
@@ -379,10 +408,11 @@ function mapProject(p: any): Project {
     status: p.status as any,
     start_date: p.startDate ? (p.startDate instanceof Date ? p.startDate.toISOString() : p.startDate) : (p.start_date || null),
     end_date: p.endDate ? (p.endDate instanceof Date ? p.endDate.toISOString() : p.endDate) : (p.end_date || null),
-    org_id: p.orgId || p.org_id,
+    org_id: p.orgId || p.org_id || null,
     created_at: p.createdAt instanceof Date ? p.createdAt.toISOString() : (p.created_at || new Date().toISOString()),
     latitude: p.latitude ?? undefined,
-    longitude: p.longitude ?? undefined
+    longitude: p.longitude ?? undefined,
+    allowed_radius_km: p.allowedRadiusKm ?? p.allowed_radius_km ?? 0.5
   };
 }
 
@@ -404,6 +434,12 @@ function mapCheckIn(c: any): CheckIn {
     id: c.id,
     user_id: c.userId || c.user_id,
     project_id: c.projectId || c.project_id,
+    check_in_at: c.checkInAt instanceof Date ? c.checkInAt.toISOString() : (c.check_in_at || new Date().toISOString()),
+    check_out_at: c.checkOutAt ? (c.checkOutAt instanceof Date ? c.checkOutAt.toISOString() : c.check_out_at) : undefined,
+    check_in_lat: c.checkInLat ?? c.check_in_lat ?? undefined,
+    check_in_lng: c.checkInLng ?? c.check_in_lng ?? undefined,
+    check_out_lat: c.checkOutLat ?? c.check_out_lat ?? undefined,
+    check_out_lng: c.checkOutLng ?? c.check_out_lng ?? undefined,
     text_report: c.textReport || c.text_report,
     hours: c.hours,
     created_at: c.createdAt instanceof Date ? c.createdAt.toISOString() : (c.created_at || new Date().toISOString()),
@@ -434,7 +470,20 @@ function mapKBArticle(kb: any): KnowledgeBase {
     title: kb.title,
     content: kb.content,
     file_url: kb.fileUrl || kb.file_url || null,
+    media_type: kb.mediaType || kb.media_type || null,
+    source_link: kb.sourceLink || kb.source_link || null,
     created_at: kb.createdAt instanceof Date ? kb.createdAt.toISOString() : (kb.created_at || new Date().toISOString())
+  };
+}
+
+function mapKBResource(r: any): KBResource {
+  return {
+    id: r.id,
+    article_id: r.articleId || r.article_id,
+    title: r.title,
+    url: r.url,
+    type: (r.type || 'link') as KBResource['type'],
+    created_at: r.createdAt instanceof Date ? r.createdAt.toISOString() : (r.created_at || new Date().toISOString())
   };
 }
 
@@ -679,7 +728,10 @@ class PrismaDBAdapter {
   async getUsers(): Promise<User[]> {
     return runQuery(
       async () => {
-        const list = await prisma.user.findMany({ orderBy: { fullName: 'asc' } });
+        const list = await prisma.user.findMany({ 
+          orderBy: { fullName: 'asc' },
+          include: { systemRole: true }
+        });
         return list.map(mapUser);
       },
       (data) => {
@@ -777,6 +829,7 @@ class PrismaDBAdapter {
             availabilityStatus: user.availability_status || 'offline',
             availableUntil: user.available_until ? new Date(user.available_until) : null,
             availabilityNote: user.availability_note || null,
+            systemRoleId: user.system_role_id || null,
           }
         });
         return mapUser(created);
@@ -818,6 +871,8 @@ class PrismaDBAdapter {
         if (updates.availability_status !== undefined) data.availabilityStatus = updates.availability_status;
         if (updates.available_until !== undefined) data.availableUntil = updates.available_until ? new Date(updates.available_until) : null;
         if (updates.availability_note !== undefined) data.availabilityNote = updates.availability_note;
+        if (updates.is_physically_ready !== undefined) data.isPhysicallyReady = updates.is_physically_ready;
+        if (updates.system_role_id !== undefined) data.systemRoleId = updates.system_role_id;
 
         const updated = await prisma.user.update({ where: { id }, data });
         return mapUser(updated);
@@ -957,6 +1012,7 @@ class PrismaDBAdapter {
             orgId: project.org_id || null,
             latitude: project.latitude || null,
             longitude: project.longitude || null,
+            allowedRadiusKm: project.allowed_radius_km ?? 0.5,
           }
         });
         return mapProject(created);
@@ -987,6 +1043,7 @@ class PrismaDBAdapter {
         if (updates.org_id !== undefined) data.orgId = updates.org_id;
         if (updates.latitude !== undefined) data.latitude = updates.latitude;
         if (updates.longitude !== undefined) data.longitude = updates.longitude;
+        if (updates.allowed_radius_km !== undefined) data.allowedRadiusKm = updates.allowed_radius_km;
 
         const updated = await prisma.project.update({ where: { id }, data });
         return mapProject(updated);
@@ -1116,16 +1173,20 @@ class PrismaDBAdapter {
   }
 
   async createCheckIn(checkIn: Omit<CheckIn, 'id' | 'created_at'>): Promise<CheckIn> {
-    const id = `ci_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-    return runQuery(
-      async () => {
+    if (USE_PRISMA) {
+      try {
         const created = await prisma.checkIn.create({
           data: {
-            id,
             userId: checkIn.user_id,
             projectId: checkIn.project_id || null,
-            textReport: checkIn.text_report,
-            hours: Number(checkIn.hours),
+            checkInAt: checkIn.check_in_at ? new Date(checkIn.check_in_at) : new Date(),
+            checkOutAt: checkIn.check_out_at ? new Date(checkIn.check_out_at) : null,
+            checkInLat: checkIn.check_in_lat || null,
+            checkInLng: checkIn.check_in_lng || null,
+            checkOutLat: checkIn.check_out_lat || null,
+            checkOutLng: checkIn.check_out_lng || null,
+            textReport: checkIn.text_report || null,
+            hours: checkIn.hours ? Number(checkIn.hours) : null,
             kpiScore: checkIn.kpi_score || null,
             feedback: checkIn.feedback || null,
             reviewedBy: checkIn.reviewed_by || null,
@@ -1133,13 +1194,19 @@ class PrismaDBAdapter {
           }
         });
         return mapCheckIn(created);
-      },
+      } catch (e) {
+        console.error('Prisma createCheckIn failed', e);
+      }
+    }
+    const id = `ci_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    const newCheckIn: CheckIn = {
+      ...checkIn,
+      id,
+      created_at: new Date().toISOString()
+    };
+    return runQuery(
+      async () => { /* Handled above */ throw new Error("Fallback used"); },
       (data) => {
-        const newCheckIn: CheckIn = {
-          ...checkIn,
-          id,
-          created_at: new Date().toISOString()
-        };
         if (!data.check_ins) data.check_ins = [];
         data.check_ins.push(newCheckIn);
         saveFallbackData(data);
@@ -1149,21 +1216,27 @@ class PrismaDBAdapter {
   }
 
   async updateCheckIn(id: string, updates: Partial<CheckIn>): Promise<CheckIn> {
-    return runQuery(
-      async () => {
+    if (USE_PRISMA) {
+      try {
         const data: any = {};
-        if (updates.user_id !== undefined) data.userId = updates.user_id;
-        if (updates.project_id !== undefined) data.projectId = updates.project_id;
         if (updates.text_report !== undefined) data.textReport = updates.text_report;
         if (updates.hours !== undefined) data.hours = Number(updates.hours);
         if (updates.kpi_score !== undefined) data.kpiScore = updates.kpi_score;
         if (updates.feedback !== undefined) data.feedback = updates.feedback;
         if (updates.reviewed_by !== undefined) data.reviewedBy = updates.reviewed_by;
         if (updates.reviewed_at !== undefined) data.reviewedAt = updates.reviewed_at ? new Date(updates.reviewed_at) : null;
+        if (updates.check_out_at !== undefined) data.checkOutAt = updates.check_out_at ? new Date(updates.check_out_at) : null;
+        if (updates.check_out_lat !== undefined) data.checkOutLat = updates.check_out_lat;
+        if (updates.check_out_lng !== undefined) data.checkOutLng = updates.check_out_lng;
 
         const updated = await prisma.checkIn.update({ where: { id }, data });
         return mapCheckIn(updated);
-      },
+      } catch (e) {
+        console.error('Prisma updateCheckIn failed', e);
+      }
+    }
+    return runQuery(
+      async () => { /* Handled above */ throw new Error("Fallback used"); },
       (data) => {
         const index = (data.check_ins || []).findIndex((c: any) => c.id === id);
         if (index !== -1) {
@@ -1193,12 +1266,21 @@ class PrismaDBAdapter {
   async getKBArticle(id: string): Promise<KnowledgeBase | undefined> {
     return runQuery(
       async () => {
-        const kb = await prisma.knowledgeBase.findUnique({ where: { id } });
-        return kb ? mapKBArticle(kb) : undefined;
+        const kb = await prisma.knowledgeBase.findUnique({
+          where: { id },
+          include: { resources: { orderBy: { createdAt: 'asc' } } }
+        });
+        if (!kb) return undefined;
+        const article = mapKBArticle(kb);
+        article.resources = (kb.resources || []).map(mapKBResource);
+        return article;
       },
       (data) => {
         const kb = (data.kb_articles || []).find((x: any) => x.id === id);
-        return kb ? mapKBArticle(kb) : undefined;
+        if (!kb) return undefined;
+        const article = mapKBArticle(kb);
+        article.resources = (data.kb_resources || []).filter((r: any) => r.article_id === id).map(mapKBResource);
+        return article;
       }
     );
   }
@@ -1214,6 +1296,8 @@ class PrismaDBAdapter {
             title: article.title,
             content: article.content,
             fileUrl: article.file_url || null,
+            mediaType: article.media_type || null,
+            sourceLink: article.source_link || null,
           }
         });
         return mapKBArticle(created);
@@ -1240,6 +1324,8 @@ class PrismaDBAdapter {
         if (updates.title !== undefined) data.title = updates.title;
         if (updates.content !== undefined) data.content = updates.content;
         if (updates.file_url !== undefined) data.fileUrl = updates.file_url;
+        if (updates.media_type !== undefined) data.mediaType = updates.media_type;
+        if (updates.source_link !== undefined) data.sourceLink = updates.source_link;
 
         const updated = await prisma.knowledgeBase.update({ where: { id }, data });
         return mapKBArticle(updated);
@@ -1252,6 +1338,61 @@ class PrismaDBAdapter {
           return mapKBArticle(data.kb_articles[index]);
         }
         throw new Error('KnowledgeBase article not found');
+      }
+    );
+  }
+
+  // KB Resources
+  async getKBResources(articleId: string): Promise<KBResource[]> {
+    return runQuery(
+      async () => {
+        const list = await prisma.kBResource.findMany({
+          where: { articleId },
+          orderBy: { createdAt: 'asc' }
+        });
+        return list.map(mapKBResource);
+      },
+      (data) => {
+        return (data.kb_resources || []).filter((r: any) => r.article_id === articleId).map(mapKBResource);
+      }
+    );
+  }
+
+  async createKBResource(resource: Omit<KBResource, 'id' | 'created_at'>): Promise<KBResource> {
+    const id = `kbr_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+    return runQuery(
+      async () => {
+        const created = await prisma.kBResource.create({
+          data: {
+            id,
+            articleId: resource.article_id,
+            title: resource.title,
+            url: resource.url,
+            type: resource.type,
+          }
+        });
+        return mapKBResource(created);
+      },
+      (data) => {
+        const newResource: KBResource = { ...resource, id, created_at: new Date().toISOString() };
+        if (!data.kb_resources) data.kb_resources = [];
+        data.kb_resources.push(newResource);
+        saveFallbackData(data);
+        return mapKBResource(newResource);
+      }
+    );
+  }
+
+  async deleteKBResource(id: string): Promise<void> {
+    await runQuery(
+      async () => {
+        try { await prisma.kBResource.delete({ where: { id } }); } catch {}
+      },
+      (data) => {
+        if (data.kb_resources) {
+          data.kb_resources = data.kb_resources.filter((r: any) => r.id !== id);
+          saveFallbackData(data);
+        }
       }
     );
   }
@@ -2571,21 +2712,25 @@ class PrismaDBAdapter {
   }
 
   // --- Volunteer Applications ---
-  async getVolunteerApplications(): Promise<VolunteerApplication[]> {
+  async getVolunteerApplications(opts?: { status?: string }): Promise<VolunteerApplication[]> {
     return runQuery(
       async () => {
-        const apps = await prisma.volunteerApplication.findMany({ orderBy: { createdAt: 'desc' } });
+        const whereClause = opts?.status ? { status: opts.status } : {};
+        const apps = await prisma.volunteerApplication.findMany({ where: whereClause, orderBy: { createdAt: 'desc' } });
         return apps.map((app: any) => ({
           id: app.id,
           telegram_id: Number(app.telegramId),
           language_pref: app.languagePref,
           full_name: app.fullName,
-          date_of_birth: app.dateOfBirth,
+          date_of_birth: app.dateOfBirth || '',
           phone: app.phone,
+          projects: app.projects || [],
           spoken_languages: app.spokenLanguages,
           has_disability: app.hasDisability,
           disability_info: app.disabilityInfo,
-          status: app.status,
+          is_physically_ready: app.isPhysicallyReady,
+          referral_info: app.referralInfo,
+          status: app.status as VolunteerApplication['status'],
           created_at: app.createdAt.toISOString()
         }));
       },
@@ -2603,12 +2748,15 @@ class PrismaDBAdapter {
           telegram_id: Number(app.telegramId),
           language_pref: app.languagePref,
           full_name: app.fullName,
-          date_of_birth: app.dateOfBirth,
+          date_of_birth: app.dateOfBirth || '',
           phone: app.phone,
+          projects: app.projects || [],
           spoken_languages: app.spokenLanguages,
           has_disability: app.hasDisability,
           disability_info: app.disabilityInfo,
-          status: app.status,
+          is_physically_ready: app.isPhysicallyReady,
+          referral_info: app.referralInfo,
+          status: app.status as VolunteerApplication['status'],
           created_at: app.createdAt.toISOString()
         };
       },
@@ -2621,29 +2769,35 @@ class PrismaDBAdapter {
       async () => {
         const app = await prisma.volunteerApplication.create({
           data: {
-            telegramId: appData.telegram_id,
-            languagePref: appData.language_pref,
-            fullName: appData.full_name,
-            dateOfBirth: appData.date_of_birth,
-            phone: appData.phone,
-            spokenLanguages: appData.spoken_languages,
-            hasDisability: appData.has_disability,
-            disabilityInfo: appData.disability_info,
-            status: appData.status
+            telegramId:       appData.telegram_id,
+            languagePref:     appData.language_pref,
+            fullName:         appData.full_name,
+            dateOfBirth:      appData.date_of_birth || '',
+            phone:            appData.phone,
+            projects:         appData.projects || [],
+            spokenLanguages:  appData.spoken_languages,
+            hasDisability:    appData.has_disability,
+            disabilityInfo:   appData.disability_info,
+            isPhysicallyReady: appData.is_physically_ready,
+            referralInfo:     appData.referral_info,
+            status:           appData.status
           }
         });
         return {
-          id: app.id,
-          telegram_id: Number(app.telegramId),
-          language_pref: app.languagePref,
-          full_name: app.fullName,
-          date_of_birth: app.dateOfBirth,
-          phone: app.phone,
-          spoken_languages: app.spokenLanguages,
-          has_disability: app.hasDisability,
-          disability_info: app.disabilityInfo,
-          status: app.status,
-          created_at: app.createdAt.toISOString()
+          id:                 app.id,
+          telegram_id:        Number(app.telegramId),
+          language_pref:      app.languagePref,
+          full_name:          app.fullName,
+          date_of_birth:      app.dateOfBirth || '',
+          phone:              app.phone,
+          projects:           app.projects || [],
+          spoken_languages:   app.spokenLanguages,
+          has_disability:     app.hasDisability,
+          disability_info:    app.disabilityInfo,
+          is_physically_ready: app.isPhysicallyReady,
+          referral_info:      app.referralInfo,
+          status:             app.status as VolunteerApplication['status'],
+          created_at:         app.createdAt.toISOString()
         };
       },
       (data) => {
@@ -2679,7 +2833,8 @@ class PrismaDBAdapter {
           spoken_languages: app.spokenLanguages,
           has_disability: app.hasDisability,
           disability_info: app.disabilityInfo,
-          status: app.status,
+          is_physically_ready: app.isPhysicallyReady,
+          status: app.status as VolunteerApplication['status'],
           created_at: app.createdAt.toISOString()
         };
       },

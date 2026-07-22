@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const { category, title, content, file_url } = body;
+    const { category, title, content, file_url, media_type, source_link } = body;
 
     // Use category_id as fallback if dashboard frontend sends category_id
     const finalCategory = category || body.category_id;
@@ -46,7 +46,9 @@ export async function POST(req: NextRequest) {
       category: finalCategory,
       title,
       content,
-      file_url: file_url || null
+      file_url: file_url || null,
+      media_type: media_type || null,
+      source_link: source_link || null
     });
 
     return NextResponse.json(newArticle, { status: 201 });

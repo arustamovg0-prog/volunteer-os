@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const { title, description, status, start_date, end_date } = body;
+    const { title, description, status, start_date, end_date, latitude, longitude, allowed_radius_km } = body;
 
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
@@ -43,7 +43,10 @@ export async function POST(req: NextRequest) {
       description: description || '',
       status: status || 'planning',
       start_date: start_date || null,
-      end_date: end_date || null
+      end_date: end_date || null,
+      latitude: latitude ?? null,
+      longitude: longitude ?? null,
+      allowed_radius_km: allowed_radius_km ?? 0.5
     });
 
     return NextResponse.json(newProject, { status: 201 });
@@ -60,14 +63,19 @@ export async function PATCH(req: NextRequest) {
     if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const { projectId, coordinatorId } = body;
+    const { projectId, coordinatorId, latitude, longitude, allowed_radius_km } = body;
 
     if (!projectId) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
     }
 
-    // Use JSON DB fallback: update coordinator_id field directly
-    const updated = await db.updateProject(projectId, { coordinator_id: coordinatorId || null } as any);
+    const updates: any = {};
+    if (coordinatorId !== undefined) updates.coordinator_id = coordinatorId || null;
+    if (latitude !== undefined) updates.latitude = latitude === null ? null : parseFloat(latitude);
+    if (longitude !== undefined) updates.longitude = longitude === null ? null : parseFloat(longitude);
+    if (allowed_radius_km !== undefined) updates.allowed_radius_km = parseFloat(allowed_radius_km);
+
+    const updated = await db.updateProject(projectId, updates);
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Failed to assign coordinator:', error);

@@ -46,6 +46,7 @@ export default function DashboardChatsPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessageText, setNewMessageText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [autoTranslate, setAutoTranslate] = useState(false);
 
   const [role, setRole] = useState<'manager' | 'admin'>('manager');
   const [currentUserId, setCurrentUserId] = useState('');
@@ -76,13 +77,13 @@ export default function DashboardChatsPage() {
   useEffect(() => {
     if (!selectedChat) return;
 
-    fetchMessages(selectedChat.id);
+    fetchMessages(selectedChat.id, autoTranslate);
     const interval = setInterval(() => {
-      fetchMessages(selectedChat.id);
+      fetchMessages(selectedChat.id, autoTranslate);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [selectedChat]);
+  }, [selectedChat, autoTranslate]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -102,9 +103,10 @@ export default function DashboardChatsPage() {
     }
   }
 
-  async function fetchMessages(chatId: string) {
+  async function fetchMessages(chatId: string, translate: boolean = false) {
     try {
-      const res = await fetch(`/api/chats/messages?chatId=${chatId}`);
+      const url = `/api/chats/messages?chatId=${chatId}${translate ? '&translateTo=ru' : ''}`;
+      const res = await fetch(url);
       if (res.ok) {
         setMessages(await res.json());
       }
@@ -112,6 +114,8 @@ export default function DashboardChatsPage() {
       console.error('Failed to fetch messages', e);
     }
   }
+
+
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,14 +243,25 @@ export default function DashboardChatsPage() {
                   </div>
                 </div>
 
-                {selectedChat.type === 'project' && selectedChat.project_id && (
-                  <Link 
-                    href={`/dashboard/projects/${selectedChat.project_id}`}
-                    className="text-[10px] bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 rounded-lg font-bold text-slate-700 transition-colors"
-                  >
-                    К проекту →
-                  </Link>
-                )}
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">
+                    <input 
+                      type="checkbox" 
+                      checked={autoTranslate} 
+                      onChange={e => setAutoTranslate(e.target.checked)} 
+                      className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900" 
+                    />
+                    <span className="text-[10px] font-bold text-slate-600 uppercase">Авто-перевод</span>
+                  </label>
+                  {selectedChat.type === 'project' && selectedChat.project_id && (
+                    <Link 
+                      href={`/dashboard/projects/${selectedChat.project_id}`}
+                      className="text-[10px] bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-1.5 rounded-lg font-bold text-slate-700 transition-colors"
+                    >
+                      К проекту →
+                    </Link>
+                  )}
+                </div>
               </div>
 
               {/* Messages Area */}
@@ -275,6 +290,12 @@ export default function DashboardChatsPage() {
                             : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
                         }`}>
                           {msg.text}
+                          {autoTranslate && !isMine && msg.translatedText && (
+                            <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-500 italic bg-slate-50 p-2 rounded">
+                              <span className="font-bold text-slate-600 block mb-0.5">Перевод:</span>
+                              {msg.translatedText}
+                            </div>
+                          )}
                         </div>
                         <span className="text-[8px] text-slate-400 font-semibold mt-1 px-1">
                           {new Date(msg.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}

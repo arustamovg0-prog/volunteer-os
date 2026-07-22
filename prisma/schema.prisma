@@ -24,6 +24,7 @@ model User {
   latitude     Float?
   longitude    Float?
   avatarUrl    String?                  @map("avatar_url")
+  isPhysicallyReady Boolean           @default(false) @map("is_physically_ready")
   availabilityStatus String              @default("offline") @map("availability_status")
   availableUntil DateTime?               @map("available_until")
   availabilityNote String?               @map("availability_note")
@@ -32,6 +33,9 @@ model User {
   chatMessages ChatMessage[]
   tasks        Task[]
   notifications Notification[]
+  kpiGoals     KPIGoal[]
+  systemRoleId String?                  @map("system_role_id")
+  systemRole   SystemRole?              @relation(fields: [systemRoleId], references: [id], onDelete: SetNull)
 
   @@index([role])
   @@index([availabilityStatus])
@@ -49,12 +53,14 @@ model Project {
   createdAt   DateTime             @default(now()) @map("created_at")
   latitude    Float?
   longitude   Float?
+  allowedRadiusKm Float @default(0.5) @map("allowed_radius_km")
   organization VolunteerOrganization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
   tasks       Task[]
   checkins    CheckIn[]
   meetings    Meeting[]
   chats       Chat[]
   allocations ResourceAllocation[]
+  partners    ProjectPartner[]
 
   @@index([status])
   @@index([orgId])
@@ -84,8 +90,15 @@ model CheckIn {
   id          String    @id @default(uuid())
   userId      String    @map("user_id")
   projectId   String?   @map("project_id")
-  textReport  String    @map("text_report")
-  hours       Float
+  checkInAt   DateTime  @default(now()) @map("check_in_at")
+  checkOutAt  DateTime? @map("check_out_at")
+  checkInLat  Float?    @map("check_in_lat")
+  checkInLng  Float?    @map("check_in_lng")
+  checkOutLat Float?    @map("check_out_lat")
+  checkOutLng Float?    @map("check_out_lng")
+  textReport  String?   @map("text_report")
+  hours       Float?
+  status      String    @default("pending") // pending, approved, rejected
   createdAt   DateTime  @default(now()) @map("created_at")
   kpiScore    Int?      @map("kpi_score")
   feedback    String?
@@ -114,14 +127,30 @@ model Meeting {
 }
 
 model KnowledgeBase {
-  id        String   @id @default(uuid())
-  category  String
-  title     String
-  content   String   @db.Text
-  fileUrl   String?  @map("file_url")
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String       @id @default(uuid())
+  category    String
+  title       String
+  content     String       @db.Text
+  fileUrl     String?      @map("file_url")
+  mediaType   String?      @map("media_type") // e.g. "video", "image", "document"
+  sourceLink  String?      @map("source_link")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  resources   KBResource[]
 
   @@map("knowledge_base")
+}
+
+model KBResource {
+  id        String        @id @default(uuid())
+  articleId String        @map("article_id")
+  title     String
+  url       String
+  type      String        @default("link") // "link", "video", "document", "form"
+  createdAt DateTime      @default(now()) @map("created_at")
+  article   KnowledgeBase @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@map("kb_resources")
 }
 
 model Chat {
@@ -211,11 +240,14 @@ model VolunteerApplication {
   telegramId      BigInt   @unique @map("telegram_id")
   languagePref    String   @map("language_pref")
   fullName        String   @map("full_name")
-  dateOfBirth     String   @map("date_of_birth")
+  dateOfBirth     String?  @map("date_of_birth")
   phone           String
+  projects        String[] @default([]) @map("projects")
   spokenLanguages String[] @map("spoken_languages")
-  hasDisability   Boolean  @map("has_disability")
+  hasDisability   Boolean  @default(false) @map("has_disability")
   disabilityInfo  String?  @map("disability_info")
+  isPhysicallyReady Boolean @default(false) @map("is_physically_ready")
+  referralInfo    String?  @map("referral_info")
   status          String   @default("pending") // "pending", "accepted", "rejected"
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -329,8 +361,38 @@ model Partner {
   phone            String?
   autoGreetEnabled Boolean  @default(false) @map("auto_greet_enabled")
   createdAt        DateTime @default(now()) @map("created_at")
+  activities       PartnerActivity[]
+  projects         ProjectPartner[]
 
   @@map("partners")
+}
+
+model PartnerActivity {
+  id          String   @id @default(uuid())
+  partnerId   String   @map("partner_id")
+  eventName   String   @map("event_name")
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  partner     Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+  @@map("partner_activities")
+}
+
+model ProjectPartner {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  partnerId String   @map("partner_id")
+  role      String?  
+  createdAt DateTime @default(now()) @map("created_at")
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  partner   Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, partnerId])
+  @@map("project_partners")
 }
 
 model HrDocument {
@@ -410,4 +472,55 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
+}
+
+model KPIParameter {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  unit        String     @default("points")
+  weight      Float      @default(1.0)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  goals       KPIGoal[]
+
+  @@map("kpi_parameters")
+}
+
+model KPIGoal {
+  id             String       @id @default(uuid())
+  kpiParameterId String       @map("kpi_parameter_id")
+  userId         String       @map("user_id")
+  targetValue    Float        @map("target_value")
+  currentValue   Float        @default(0.0) @map("current_value")
+  periodStart    DateTime     @map("period_start")
+  periodEnd      DateTime     @map("period_end")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  parameter      KPIParameter @relation(fields: [kpiParameterId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([kpiParameterId])
+  @@map("kpi_goals")
+}
+
+model SystemRole {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  permissions String[] @default([])
+  createdAt   DateTime @default(now()) @map("created_at")
+  users       User[]
+
+  @@map("system_roles")
+}
+
+model TranslationCache {
+  id           String   @id @default(uuid())
+  originalText String   @db.Text
+  targetLang   String   @map("target_lang")
+  translated   String   @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([originalText, targetLang])
+  @@map("translation_cache")
 }

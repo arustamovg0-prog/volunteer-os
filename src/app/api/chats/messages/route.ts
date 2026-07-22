@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireSessionRequest } from '@/lib/security';
+import { translateText } from '@/lib/translator';
 
 export async function GET(req: NextRequest) {
   try {
@@ -18,6 +19,25 @@ export async function GET(req: NextRequest) {
     
     // Sort messages by creation time ascending
     messages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+    const translateTo = searchParams.get('translateTo');
+    
+    if (translateTo) {
+      const translatedMessages = await Promise.all(messages.map(async (msg) => {
+        // Don't translate your own messages
+        if (msg.sender_id === auth.session.userId) {
+          return msg;
+        }
+        
+        try {
+          const translated = await translateText(msg.text, translateTo);
+          return { ...msg, translatedText: translated };
+        } catch (err) {
+          return msg;
+        }
+      }));
+      return NextResponse.json(translatedMessages);
+    }
 
     return NextResponse.json(messages);
   } catch (error) {
