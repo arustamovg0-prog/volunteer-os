@@ -11,15 +11,21 @@ export async function logSystemEvent(
   level: LogLevel,
   message: string,
   details?: Record<string, any>,
-  source: 'client' | 'server' | 'cron' = 'server'
+  source: string = 'server'
 ) {
   try {
+    // Extract section if passed inside details or fallback to source
+    const section = details?.section || source || 'server';
+
     // 1. Save log to database
     await prisma.systemLog.create({
       data: {
         level,
         message,
-        details: details || {},
+        details: {
+          ...details,
+          section,
+        },
         source,
       },
     });
@@ -27,7 +33,6 @@ export async function logSystemEvent(
     // 2. If it's an error, notify admin via Telegram
     if (level === 'ERROR') {
       try {
-        // Find admin users with a linked Telegram ID
         const admins = await prisma.user.findMany({
           where: {
             role: 'admin',
@@ -37,7 +42,7 @@ export async function logSystemEvent(
           },
         });
 
-        const alertMessage = `🚨 *КРИТИЧЕСКАЯ ОШИБКА*\n\n*Сообщение:* ${message}\n*Источник:* ${source}\n\nПожалуйста, проверьте панель мониторинга!`;
+        const alertMessage = `🚨 *ОШИБКА НА ПЛАТФОРМЕ*\n\n📌 *Раздел:* ${section.toUpperCase()}\n💬 *Сообщение:* ${message}\n⚙️ *Источник:* ${source}\n\nПроверьте панель разработчика /dashboard/monitor`;
 
         for (const admin of admins) {
           if (admin.telegramId) {
@@ -49,7 +54,6 @@ export async function logSystemEvent(
       }
     }
   } catch (dbError) {
-    // Fallback if DB is down
     console.error('CRITICAL: Failed to write system log to database:', dbError);
   }
 }

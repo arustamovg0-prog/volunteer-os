@@ -1,31 +1,14 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import * as jwt from 'jsonwebtoken';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { requireSessionRequest } from '@/lib/security';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-async function getAdminUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('token')?.value;
-
-  if (!token) return null;
-
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
-    if (decoded.role !== 'admin') return null;
-    return decoded;
-  } catch {
-    return null;
-  }
-}
-
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  try {
-    const admin = await getAdminUser();
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = requireSessionRequest(req, ['admin', 'manager']);
+    if ('response' in auth) return auth.response;
 
     const { id } = await params;
     const body = await req.json();
@@ -34,29 +17,33 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const role = await prisma.systemRole.update({
       where: { id },
       data: {
-        name,
-        permissions
-      }
+        ...(name && { name: name.trim() }),
+        ...(Array.isArray(permissions) && { permissions }),
+      },
     });
 
     return NextResponse.json(role);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating role:', error);
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: 'Роль с таким названием уже существует' }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const admin = await getAdminUser();
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = requireSessionRequest(req, ['admin']);
+    if ('response' in auth) return auth.response;
 
     const { id } = await params;
 
     await prisma.systemRole.delete({
-      where: { id }
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

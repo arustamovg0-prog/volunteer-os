@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Sora } from "next/font/google";
 import "./globals.css";
+import ClientErrorTrap from "@/components/ClientErrorTrap";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -35,7 +36,10 @@ export default function RootLayout({
       lang="ru"
       className={`${inter.variable} ${sora.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ClientErrorTrap />
+        {children}
+      </body>
     </html>
   );
 }

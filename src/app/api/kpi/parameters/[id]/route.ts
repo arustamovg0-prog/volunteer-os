@@ -1,28 +1,26 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { verifyAuth } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { requireSessionRequest } from '@/lib/security';
 
 export async function PUT(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await verifyAuth(req);
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = requireSessionRequest(req, ['admin']);
+    if ('response' in auth) return auth.response;
 
     const { id } = await params;
     const body = await req.json();
 
-    const updatedParameter = await db.kPIParameter.update({
+    const updatedParameter = await prisma.kPIParameter.update({
       where: { id },
       data: {
-        name: body.name,
-        description: body.description,
-        unit: body.unit,
-        weight: body.weight ? parseFloat(body.weight) : undefined
-      }
+        ...(body.name && { name: body.name }),
+        ...(body.description !== undefined && { description: body.description }),
+        ...(body.unit && { unit: body.unit }),
+        ...(body.weight !== undefined && { weight: parseFloat(body.weight) }),
+      },
     });
 
     return NextResponse.json(updatedParameter);
@@ -33,19 +31,17 @@ export async function PUT(
 }
 
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await verifyAuth(req);
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = requireSessionRequest(req, ['admin']);
+    if ('response' in auth) return auth.response;
 
     const { id } = await params;
 
-    await db.kPIParameter.delete({
-      where: { id }
+    await prisma.kPIParameter.delete({
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

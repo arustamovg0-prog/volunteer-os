@@ -81,8 +81,10 @@ export default function Sidebar() {
     { name: t('sidebar.smm'), path: '/dashboard/smm-assistant', icon: Sparkles },
     { name: t('sidebar.alerts'), path: '/dashboard/alerts', icon: AlertTriangle },
     { name: t('sidebar.broadcast'), path: '/dashboard/broadcast', icon: Megaphone },
+    ...(role === 'developer' ? [
+      { name: t('sidebar.monitor') || 'Монитор 24/7 (Dev)', path: '/dashboard/monitor', icon: Activity },
+    ] : []),
     ...(role === 'admin' ? [
-      { name: t('sidebar.monitor'), path: '/dashboard/monitor', icon: Activity },
       { name: t('sidebar.staff'), path: '/dashboard/staff', icon: BriefcaseBusiness },
       { name: t('sidebar.roles') || 'Роли и Доступы', path: '/dashboard/roles', icon: Shield },
       { name: t('sidebar.finance'), path: '/dashboard/finance', icon: Calculator },

@@ -1,22 +1,25 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { getAuthUser } from '@/lib/auth-service';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { requireSessionRequest } from '@/lib/security';
 
-export async function GET(request: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const auth = requireSessionRequest(req);
+    if ('response' in auth) return auth.response;
+
+    const { searchParams } = new URL(req.url);
     const projectId = searchParams.get('projectId');
-    
+
     if (!projectId) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
     }
 
-    const projectPartners = await db.projectPartner.findMany({
+    const projectPartners = await prisma.projectPartner.findMany({
       where: { projectId },
       include: {
-        partner: true
+        partner: true,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     return NextResponse.json(projectPartners);
@@ -26,59 +29,54 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const auth = await getAuthUser();
-    if (!auth || (auth.role !== 'admin' && auth.role !== 'manager')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
+    const auth = requireSessionRequest(req, ['admin', 'manager']);
+    if ('response' in auth) return auth.response;
 
-    const body = await request.json();
+    const body = await req.json();
     const { projectId, partnerId, role } = body;
 
     if (!projectId || !partnerId) {
       return NextResponse.json({ error: 'projectId and partnerId are required' }, { status: 400 });
     }
 
-    // 1. Check if already exists
-    const existing = await db.projectPartner.findFirst({
-      where: { projectId, partnerId }
+    const existing = await prisma.projectPartner.findFirst({
+      where: { projectId, partnerId },
     });
 
     if (existing) {
       return NextResponse.json({ error: 'Partner already linked to this project' }, { status: 400 });
     }
 
-    // 2. Fetch project name to log in activity
-    const project = await db.project.findUnique({
+    const project = await prisma.project.findUnique({
       where: { id: projectId },
-      select: { title: true }
+      select: { title: true },
     });
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // 3. Create ProjectPartner link AND PartnerActivity in a transaction
-    const result = await db.$transaction([
-      db.projectPartner.create({
+    const result = await prisma.$transaction([
+      prisma.projectPartner.create({
         data: {
           projectId,
           partnerId,
-          role
+          role,
         },
         include: {
-          partner: true
-        }
+          partner: true,
+        },
       }),
-      db.partnerActivity.create({
+      prisma.partnerActivity.create({
         data: {
           partnerId,
           eventName: project.title,
           description: `Присоединен к проекту в роли: ${role || 'Партнер'}`,
-          date: new Date()
-        }
-      })
+          date: new Date(),
+        },
+      }),
     ]);
 
     return NextResponse.json(result[0], { status: 201 });
@@ -88,22 +86,20 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(req: NextRequest) {
   try {
-    const auth = await getAuthUser();
-    if (!auth || (auth.role !== 'admin' && auth.role !== 'manager')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
+    const auth = requireSessionRequest(req, ['admin', 'manager']);
+    if ('response' in auth) return auth.response;
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
     if (!id) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
     }
 
-    await db.projectPartner.delete({
-      where: { id }
+    await prisma.projectPartner.delete({
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

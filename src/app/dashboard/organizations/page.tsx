@@ -174,7 +174,7 @@ export default function ManagerOrganizationsPage() {
       setNews(await newsRes.json());
       setMemberships(await membRes.json());
       setTasks(await tasksRes.json());
-      setCheckins(await checkinsRes.json());
+      setCheckins((await checkinsRes.json()).checkins || []);
       setProjects(await projectsRes.json());
     } catch (e) {
       console.error('Failed to fetch data for manager organizations page:', e);

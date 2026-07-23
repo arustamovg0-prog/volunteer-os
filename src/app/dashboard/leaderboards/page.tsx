@@ -97,7 +97,8 @@ export default function LeaderboardsPage() {
 
       // Fetch checkins for hours calculation
       const resC = await fetch('/api/checkins');
-      const dataC = await resC.json();
+      let dataC = await resC.json();
+      dataC = dataC.checkins || [];
 
       const resP = await fetch('/api/projects');
       const dataP = await resP.json();

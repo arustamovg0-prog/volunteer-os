@@ -93,7 +93,8 @@ export default function DashboardPage() {
   const { data: tasks = [] } = useApi<Task[]>('/api/tasks');
   const { data: projects = [] } = useApi<Project[]>('/api/projects');
   const { data: users = [] } = useApi<User[]>('/api/users');
-  const { data: checkins = [] } = useApi<CheckIn[]>('/api/checkins');
+  const { data: checkinsData } = useApi<{ checkins: CheckIn[]; activeCheckIn: any }>('/api/checkins');
+  const checkins = checkinsData?.checkins || [];
   const { data: operations } = useApi<OperationsOverview>('/api/operations/overview');
 
   const loading = !tasks.length && !projects.length && !users.length && !checkins.length && !operations;

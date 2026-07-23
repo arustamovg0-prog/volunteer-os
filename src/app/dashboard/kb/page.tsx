@@ -468,15 +468,25 @@ export default function KnowledgeBasePage() {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Раздел / Категория</label>
-                  <select
-                    value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
-                  >
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                      className="flex-1 w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                    >
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewCategoryModal(true)}
+                      className="p-2.5 border border-slate-200 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 flex-shrink-0"
+                      title="Создать новую категорию"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -661,15 +671,25 @@ export default function KnowledgeBasePage() {
 
               <div className="space-y-1.5">
                 <label className="text-xs text-slate-500 font-medium">Раздел / Категория</label>
-                <select
-                  value={newArticleCategory}
-                  onChange={(e) => setNewArticleCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
-                >
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={newArticleCategory}
+                    onChange={(e) => setNewArticleCategory(e.target.value)}
+                    className="flex-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                  >
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
                   </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCategoryModal(true)}
+                    className="p-2 border border-slate-200 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-all focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900 flex-shrink-0"
+                    title="Создать новую категорию"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-1.5">

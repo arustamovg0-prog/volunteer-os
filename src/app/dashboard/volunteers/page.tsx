@@ -13,7 +13,9 @@ import {
   Clock,
   Layers,
   FileText,
-  Trash2
+  Trash2,
+  Search,
+  Target
 } from 'lucide-react';
 import { useApi } from '@/lib/useApi';
 import { useSWRConfig } from 'swr';
@@ -25,6 +27,7 @@ interface Volunteer {
   telegram_id?: number | null;
   role: 'volunteer';
   rating: number;
+  is_physically_ready?: boolean;
 }
 
 interface Task {
@@ -57,14 +60,43 @@ interface CheckIn {
 export default function VolunteersPage() {
   const { mutate } = useSWRConfig();
   
-  const { data: volunteers = [] } = useApi<Volunteer[]>('/api/users?role=volunteer');
-  const { data: tasks = [] } = useApi<Task[]>('/api/tasks');
-  const { data: projects = [] } = useApi<Project[]>('/api/projects');
-  const { data: checkins = [] } = useApi<CheckIn[]>('/api/checkins');
-  const { data: reviews = [] } = useApi<any[]>('/api/employee-reviews');
-  const { data: applications = [] } = useApi<any[]>('/api/applications');
+  const { data: volunteersData = [] } = useApi<Volunteer[]>('/api/users?role=volunteer');
+  const { data: tasksData = [] } = useApi<Task[]>('/api/tasks');
+  const { data: projectsData = [] } = useApi<Project[]>('/api/projects');
+  const { data: checkinsResponse } = useApi<{ checkins: CheckIn[] }>('/api/checkins');
+  const { data: reviewsData = [] } = useApi<any[]>('/api/employee-reviews');
+  const { data: applicationsData = [] } = useApi<any[]>('/api/applications');
+
+  const volunteers = Array.isArray(volunteersData) ? volunteersData : [];
+  const tasks = Array.isArray(tasksData) ? tasksData : [];
+  const projects = Array.isArray(projectsData) ? projectsData : [];
+  const checkins = Array.isArray(checkinsResponse) ? checkinsResponse : (checkinsResponse?.checkins || []);
+  const reviews = Array.isArray(reviewsData) ? reviewsData : [];
+  const applications = Array.isArray(applicationsData) ? applicationsData : [];
 
   const loading = !volunteers.length && !tasks.length && !projects.length && !checkins.length && !reviews.length && !applications.length;
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredVolunteers = volunteers.filter((vol) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const nameMatch = (vol.full_name || '').toLowerCase().includes(q);
+    const phoneMatch = (vol.phone || '').replaceAll(' ', '').includes(q);
+    const tgMatch = vol.telegram_id ? String(vol.telegram_id).includes(q) : false;
+    const idMatch = (vol.id || '').toLowerCase().includes(q);
+    return nameMatch || phoneMatch || tgMatch || idMatch;
+  });
+
+  const filteredApplications = applications.filter((app: any) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const nameMatch = (app.full_name || '').toLowerCase().includes(q);
+    const phoneMatch = (app.phone || '').replaceAll(' ', '').includes(q);
+    const tgMatch = app.telegram_id ? String(app.telegram_id).includes(q) : false;
+    const idMatch = (app.id || '').toLowerCase().includes(q);
+    return nameMatch || phoneMatch || tgMatch || idMatch;
+  });
 
   const [role, setRole] = useState('manager');
   const [currentUserId, setCurrentUserId] = useState('');
@@ -81,8 +113,11 @@ export default function VolunteersPage() {
     if (selectedVolunteer) {
       fetch(`/api/kpi/goals?userId=${selectedVolunteer.id}`)
         .then(res => res.json())
-        .then(data => setVolunteerGoals(data || []))
-        .catch(err => console.error(err));
+        .then(data => setVolunteerGoals(Array.isArray(data) ? data : []))
+        .catch(err => {
+          console.error(err);
+          setVolunteerGoals([]);
+        });
     } else {
       setVolunteerGoals([]);
     }
@@ -369,7 +404,27 @@ export default function VolunteersPage() {
             Мониторинг часов работы, рейтинга волонтеров и логов активности
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          {/* Search Bar */}
+          <div className="relative flex-1 min-w-[240px] sm:w-[300px]">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск по ФИО, телефону или ID / TG..."
+              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all shadow-sm"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
           <div className="flex bg-slate-100 p-1 rounded-xl">
             <button
               onClick={() => setActiveTab('volunteers')}
@@ -421,13 +476,19 @@ export default function VolunteersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {volunteers.map((vol) => {
-                  const volTasks = tasks.filter(t => t.assigned_to === vol.id);
-                  const volDone = volTasks.filter(t => t.status === 'completed').length;
+                {filteredVolunteers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-500 font-medium">
+                      {searchQuery ? `Ничего не найдено по запросу "${searchQuery}"` : 'Волонтеры отсутствуют'}
+                    </td>
+                  </tr>
+                ) : filteredVolunteers.map((vol) => {
+                  const volTasks = (Array.isArray(tasks) ? tasks : []).filter(t => t?.assigned_to === vol.id);
+                  const volDone = volTasks.filter(t => t?.status === 'completed').length;
                   const volPending = volTasks.length - volDone;
-                  const volHours = checkins
-                    .filter(c => c.user_id === vol.id)
-                    .reduce((acc, c) => acc + Number(c.hours), 0);
+                  const volHours = (Array.isArray(checkins) ? checkins : [])
+                    .filter(c => c?.user_id === vol.id)
+                    .reduce((acc, c) => acc + Number(c?.hours || 0), 0);
 
                   const ratingVal = vol.rating ?? 5.0;
                   let ratingColors = 'text-slate-700 bg-slate-100 border-slate-200';
@@ -483,7 +544,7 @@ export default function VolunteersPage() {
 
                       {/* Physical Readiness */}
                       <td className="py-4 px-4 text-center">
-                        {user.is_physically_ready ? (
+                        {vol.is_physically_ready ? (
                           <span className="px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded text-[10px] font-semibold">Да</span>
                         ) : (
                           <span className="px-2 py-0.5 bg-slate-50 text-slate-500 border border-slate-200 rounded text-[10px]">Нет</span>
@@ -520,11 +581,13 @@ export default function VolunteersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {applications.length === 0 ? (
+                {filteredApplications.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-500 font-medium">Нет заявок</td>
+                    <td colSpan={7} className="py-8 text-center text-slate-500 font-medium">
+                      {searchQuery ? `Ничего не найдено по запросу "${searchQuery}"` : 'Нет заявок'}
+                    </td>
                   </tr>
-                ) : applications.map((app: any) => (
+                ) : filteredApplications.map((app: any) => (
                   <tr key={app.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="py-4 px-6 font-bold text-slate-900">{app.full_name}</td>
                     <td className="py-4 px-4 space-y-1">
@@ -544,7 +607,7 @@ export default function VolunteersPage() {
                     </td>
                     <td className="py-4 px-4 text-slate-600">
                       <div className="flex flex-wrap gap-1">
-                        {app.spoken_languages.map((lang: string, i: number) => (
+                        {(app.spoken_languages || []).map((lang: string, i: number) => (
                           <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px]">{lang}</span>
                         ))}
                       </div>

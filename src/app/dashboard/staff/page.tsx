@@ -51,6 +51,10 @@ export default function StaffPage() {
   const [systemRoleId, setSystemRoleId] = useState('');
   const [systemRoles, setSystemRoles] = useState<any[]>([]);
 
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
+  const [savingRole, setSavingRole] = useState(false);
+
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole') || 'manager';
     setRole(savedRole);
@@ -153,6 +157,33 @@ export default function StaffPage() {
     } catch (error) {
       console.error(error);
       alert('Ошибка соединения');
+    }
+  };
+
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoleName.trim()) return;
+    setSavingRole(true);
+    try {
+      const res = await fetch('/api/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newRoleName, permissions: [] }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setSystemRoles([...systemRoles, payload]);
+        setSystemRoleId(payload.id);
+        setShowRoleModal(false);
+        setNewRoleName('');
+      } else {
+        alert(payload.error || 'Ошибка при создании роли');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Ошибка при создании роли');
+    } finally {
+      setSavingRole(false);
     }
   };
 
@@ -286,16 +317,21 @@ export default function StaffPage() {
               <input value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm" placeholder="Например, Алишер Каримов" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Роль (Доступ) *</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Уровень доступа к системе *</label>
               <select value={staffRole} onChange={(e) => setStaffRole(e.target.value as 'manager' | 'admin')} className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm">
-                <option value="manager">Координатор</option>
-                <option value="admin">Директор / руководитель</option>
+                <option value="manager">Координатор (Ограниченный доступ)</option>
+                <option value="admin">Директор (Полный доступ)</option>
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Кастомная Роль (Функционал)</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Должность сотрудника (Роль)</label>
+                <button type="button" onClick={() => setShowRoleModal(true)} className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700">
+                  <Plus className="w-3 h-3" /> Добавить
+                </button>
+              </div>
               <select value={systemRoleId} onChange={(e) => setSystemRoleId(e.target.value)} className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm">
-                <option value="">Нет (Только базовый доступ)</option>
+                <option value="">Без должности (По умолчанию)</option>
                 {systemRoles.map(role => (
                   <option key={role.id} value={role.id}>{role.name}</option>
                 ))}
@@ -370,6 +406,28 @@ export default function StaffPage() {
               Только директор может просматривать этот профиль и создавать новые аккаунты сотрудников. Координаторы не имеют доступа к этой вкладке и защищенному API штата.
             </div>
           </aside>
+        </div>
+      )}
+      {showRoleModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-slate-900 text-sm">Новая должность / роль</h3>
+              <button onClick={() => setShowRoleModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateRole} className="p-4 space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Название роли</label>
+                <input required type="text" value={newRoleName} onChange={e => setNewRoleName(e.target.value)} className="w-full px-3.5 py-3 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" placeholder="Например: HR Специалист" />
+              </div>
+              <button type="submit" disabled={savingRole} className="w-full py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-colors">
+                {savingRole ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                {savingRole ? 'Создаем...' : 'Создать'}
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </>

@@ -1,35 +1,20 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import * as jwt from 'jsonwebtoken';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { requireSessionRequest } from '@/lib/security';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-async function checkAuth() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('token')?.value;
-
-  if (!token) return null;
-
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
-  } catch {
-    return null;
-  }
-}
-
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-  try {
-    const user = await checkAuth();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = requireSessionRequest(req);
+    if ('response' in auth) return auth.response;
 
     const { id } = await params;
 
     const activities = await prisma.partnerActivity.findMany({
       where: { partnerId: id },
-      orderBy: { date: 'desc' }
+      orderBy: { date: 'desc' },
     });
 
     return NextResponse.json(activities);
@@ -39,12 +24,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const user = await checkAuth();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = requireSessionRequest(req, ['admin', 'manager']);
+    if ('response' in auth) return auth.response;
 
     const { id } = await params;
     const body = await req.json();
@@ -60,7 +46,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         eventName,
         description,
         date: date ? new Date(date) : new Date(),
-      }
+      },
     });
 
     return NextResponse.json(activity);

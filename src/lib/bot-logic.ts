@@ -2,6 +2,7 @@ import { db, User, Task, prisma } from './db';
 import { hashPassword } from './security';
 import crypto from 'crypto';
 import { t } from './bot-i18n';
+import { logSystemEvent } from './logger';
 
 export interface BotResponse {
   text: string;
@@ -226,14 +227,15 @@ export async function handleBotUpdate(
           health_assistant: 'Необходим сопровождающий',
           health_sensory:   'Повышенная чувствительность к шуму/свету',
           health_temporary: 'Временные ограничения здоровья',
-          health_none:      'Дополнительные условия не требуются'
+          health_none:      'Дополнительные условия не требуются',
+          health_no:        'Нет'
         };
         if (cleanText in healthMap) {
           const selected = healthMap[cleanText];
-          if (cleanText === 'health_none') {
+          if (cleanText === 'health_none' || cleanText === 'health_no') {
             data.health = [selected];
           } else {
-            data.health = data.health.filter((h: string) => h !== 'Дополнительные условия не требуются');
+            data.health = data.health.filter((h: string) => h !== 'Дополнительные условия не требуются' && h !== 'Нет');
             if (!data.health.includes(selected)) {
               data.health.push(selected);
             } else {
@@ -273,6 +275,13 @@ export async function handleBotUpdate(
           referral_info:     data.referralInfo,
           status:            'pending'
         });
+
+        await logSystemEvent(
+          'INFO',
+          `Новая заявка волонтера в Telegram-боте: ${data.fullName}`,
+          { section: 'bot', telegram_id: telegramId, phone: data.phone, full_name: data.fullName, event: 'bot_registration' },
+          'bot'
+        );
 
         await db.clearTelegramSession(telegramId);
         return { text: t('reg_success', lang) };
@@ -468,6 +477,59 @@ export async function handleBotUpdate(
       text: responseText,
       keyboard
     };
+  }
+
+  // Handle RSVP Responses (Yes / No)
+  if (cleanText.startsWith('rsvp_yes_') || cleanText.startsWith('rsvp_no_')) {
+    const isYes = cleanText.startsWith('rsvp_yes_');
+    const projectId = cleanText.replace('rsvp_yes_', '').replace('rsvp_no_', '');
+    
+    try {
+      const project = await db.getProject(projectId);
+      if (!project) return { text: '⚠️ Проект не найден.' };
+
+      // Find or create RSVP Task entry for user tracking
+      const existingTask = await prisma.task.findFirst({
+        where: {
+          projectId,
+          assignedTo: user.id,
+          title: { startsWith: 'RSVP:' }
+        }
+      });
+
+      const newStatus = isYes ? 'accepted' : 'rejected';
+      const deadlineDate = project.startDate ? new Date(project.startDate) : new Date();
+
+      if (existingTask) {
+        await prisma.task.update({
+          where: { id: existingTask.id },
+          data: { status: newStatus }
+        });
+      } else {
+        await prisma.task.create({
+          data: {
+            projectId,
+            assignedTo: user.id,
+            title: `RSVP: ${user.full_name || user.fullName || 'Волонтер'}`,
+            deadline: deadlineDate,
+            status: newStatus
+          }
+        });
+      }
+
+      if (isYes) {
+        return {
+          text: `🎉 *Отлично! Вы подтвердили участие!*\n\nМероприятие: *${project.title}*\n\nНапоминаем, что в день мероприятия нужно будет сделать Гео-Чекин при входе на локацию.`
+        };
+      } else {
+        return {
+          text: `Принято. Спасибо за ответ! Ждем вас на следующих мероприятиях.`
+        };
+      }
+    } catch (e) {
+      console.error('RSVP response error:', e);
+      return { text: '⚠️ Ошибка при сохранении ответа.' };
+    }
   }
 
   // Handle Action: Accept Task

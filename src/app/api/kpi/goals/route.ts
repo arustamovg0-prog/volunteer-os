@@ -1,29 +1,27 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { verifyAuth } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { requireSessionRequest } from '@/lib/security';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const user = await verifyAuth(req);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = requireSessionRequest(req);
+    if ('response' in auth) return auth.response;
 
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
 
-    // If user is not admin, they can only view their own goals
-    if (user.role !== 'admin' && userId !== user.id) {
-       // if they requested someone else's, deny. If they requested nothing, return theirs
-       if (userId) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-       }
+    if (auth.session.role !== 'admin' && userId !== auth.session.userId) {
+      if (userId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
-    const targetUserId = userId || user.id;
+    const targetUserId = userId || auth.session.userId;
 
-    const goals = await db.kPIGoal.findMany({
+    const goals = await prisma.kPIGoal.findMany({
       where: { userId: targetUserId },
       include: { parameter: true },
-      orderBy: { periodStart: 'desc' }
+      orderBy: { periodStart: 'desc' },
     });
 
     return NextResponse.json(goals);
@@ -32,21 +30,21 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const user = await verifyAuth(req);
-    if (!user || user.role !== 'admin') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = requireSessionRequest(req, ['admin']);
+    if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const goal = await db.kPIGoal.create({
+    const goal = await prisma.kPIGoal.create({
       data: {
         kpiParameterId: body.kpiParameterId,
         userId: body.userId,
         targetValue: parseFloat(body.targetValue),
         periodStart: new Date(body.periodStart),
-        periodEnd: new Date(body.periodEnd)
+        periodEnd: new Date(body.periodEnd),
       },
-      include: { parameter: true }
+      include: { parameter: true },
     });
 
     return NextResponse.json(goal);

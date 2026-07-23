@@ -87,7 +87,7 @@ export default function ReportsPage() {
         usersRes.json()
       ]);
 
-      setCheckins(checkinsData);
+      setCheckins(checkinsData.checkins || []);
       setProjects(projectsData);
       setUsers(usersData);
     } catch (e) {

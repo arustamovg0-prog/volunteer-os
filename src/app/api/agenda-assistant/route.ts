@@ -124,17 +124,30 @@ export async function GET(req: NextRequest) {
     const mockMessages = await db.getAllMockMessages();
     const users = await db.getUsers();
     const telegramItems: AgendaItem[] = mockMessages
-      .filter((message) => message.sender === 'user' || message.text.startsWith('Ответ ИИ-ассистента руководителя:'))
+      .filter((message) => {
+        const isLeaderAssistantReply = message.sender === 'bot' && message.text.startsWith('Ответ ИИ-ассистента руководителя:');
+        const isGroup = message.text.startsWith('[Группа:') || Number(message.telegram_id) < 0;
+        const isFile = message.text.startsWith('[Файл]');
+        return isLeaderAssistantReply || isGroup || isFile;
+      })
       .map((message) => {
         const volunteer = users.find((user) => Number(user.telegram_id) === Number(message.telegram_id));
         const isGroup = Number(message.telegram_id) < 0 || message.text.startsWith('[Группа:');
+        const isFile = message.text.startsWith('[Файл]');
         const isLeaderAssistantReply = message.sender === 'bot' && message.text.startsWith('Ответ ИИ-ассистента руководителя:');
         const classified = classify(message.text);
+        
+        let sourceLabel = isGroup ? 'Telegram группа' : 'Telegram бот';
+        if (isFile) sourceLabel = 'Файл Telegram';
+        
+        let chatTitle = isGroup ? 'Групповой поток Telegram' : `Telegram: ${volunteer?.full_name || message.telegram_id}`;
+        if (isFile && !isGroup) chatTitle = 'Загрузка файла';
+        
         return {
           id: `telegram:${message.id}`,
           source: 'telegram' as const,
-          source_label: isGroup ? 'Telegram группа' : 'Telegram бот',
-          chat_title: isGroup ? 'Групповой поток Telegram' : `Telegram: ${volunteer?.full_name || message.telegram_id}`,
+          source_label: sourceLabel,
+          chat_title: chatTitle,
           author: isLeaderAssistantReply ? 'ИИ-ассистент руководителя' : (volunteer?.full_name || 'Telegram участник'),
           role: isLeaderAssistantReply ? 'assistant' : 'telegram',
           text: compact(message.text),

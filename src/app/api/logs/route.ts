@@ -27,24 +27,58 @@ export async function POST(request: Request) {
 export async function GET(request: NextRequest) {
   const session = getSessionFromRequest(request);
   
-  if (!session || session.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized. Only admins can access system logs.' }, { status: 403 });
+  if (!session || !['developer', 'admin'].includes(session.role)) {
+    return NextResponse.json({ error: 'Unauthorized. Access restricted to developer and admin.' }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
   const limitParam = searchParams.get('limit') || '100';
   const levelFilter = searchParams.get('level');
+  const sectionFilter = searchParams.get('section');
+  const query = searchParams.get('query');
 
   try {
-    const whereClause = levelFilter ? { level: levelFilter } : {};
+    const startPing = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    const dbLatency = Date.now() - startPing;
 
-    const logs = await prisma.systemLog.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      take: parseInt(limitParam, 10),
+    const whereClause: any = {};
+    if (levelFilter && levelFilter !== 'ALL') {
+      whereClause.level = levelFilter;
+    }
+    if (sectionFilter && sectionFilter !== 'ALL') {
+      whereClause.source = sectionFilter;
+    }
+    if (query) {
+      whereClause.OR = [
+        { message: { contains: query, mode: 'insensitive' } },
+        { source: { contains: query, mode: 'insensitive' } }
+      ];
+    }
+
+    const [logs, totalErrors, totalWarns, botRegistrationsCount, platformUsersCount] = await Promise.all([
+      prisma.systemLog.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: parseInt(limitParam, 10),
+      }),
+      prisma.systemLog.count({ where: { level: 'ERROR' } }),
+      prisma.systemLog.count({ where: { level: 'WARN' } }),
+      prisma.volunteerApplication.count(),
+      prisma.user.count()
+    ]);
+
+    return NextResponse.json({
+      logs,
+      stats: {
+        dbLatency,
+        totalErrors,
+        totalWarns,
+        botRegistrationsCount,
+        platformUsersCount,
+        status: dbLatency < 500 ? 'HEALTHY' : 'DEGRADED'
+      }
     });
-
-    return NextResponse.json(logs);
   } catch (error) {
     console.error('Failed to fetch system logs:', error);
     return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 });

@@ -1,34 +1,14 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import * as jwt from 'jsonwebtoken';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { requireSessionRequest } from '@/lib/security';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-async function getAdminUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('token')?.value;
-
-  if (!token) return null;
-
+export async function GET(req: NextRequest) {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
-    if (decoded.role !== 'admin') return null;
-    return decoded;
-  } catch {
-    return null;
-  }
-}
-
-export async function GET() {
-  try {
-    const admin = await getAdminUser();
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = requireSessionRequest(req);
+    if ('response' in auth) return auth.response;
 
     const roles = await prisma.systemRole.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     return NextResponse.json(roles);
@@ -38,30 +18,31 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const admin = await getAdminUser();
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = requireSessionRequest(req, ['admin', 'manager']);
+    if ('response' in auth) return auth.response;
 
     const body = await req.json();
     const { name, permissions } = body;
 
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return NextResponse.json({ error: 'Название роли обязательно' }, { status: 400 });
     }
 
     const role = await prisma.systemRole.create({
       data: {
-        name,
-        permissions: permissions || [],
-      }
+        name: name.trim(),
+        permissions: Array.isArray(permissions) ? permissions : [],
+      },
     });
 
     return NextResponse.json(role);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating role:', error);
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: 'Роль с таким названием уже существует' }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

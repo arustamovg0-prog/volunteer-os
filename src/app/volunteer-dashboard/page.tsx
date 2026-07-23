@@ -147,7 +147,7 @@ export default function VolunteerDashboard() {
           setRecommendations(recsData && Array.isArray(recsData.recommendations) ? recsData.recommendations : []);
           setActiveAlerts(Array.isArray(alertsData) ? alertsData : []);
           setMarketplaceTasks(Array.isArray(marketplaceData) ? marketplaceData.filter((task: Task) => !task.assigned_to) : []);
-          setCheckins(Array.isArray(checkinsData) ? checkinsData : []);
+          setCheckins(Array.isArray(checkinsData) ? checkinsData : checkinsData?.checkins || []);
         } else {
           localStorage.removeItem('volunteerId');
           setVolunteerId(null);

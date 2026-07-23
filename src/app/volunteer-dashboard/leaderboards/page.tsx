@@ -191,7 +191,7 @@ export default function VolunteerLeaderboardPage() {
         
         setVolunteers(sorted);
         setProjects(await resP.json());
-        setCheckins(await resC.json());
+        setCheckins((await resC.json()).checkins || []);
         setTasks(await resT.json());
         setAlerts(await resA.json());
       }

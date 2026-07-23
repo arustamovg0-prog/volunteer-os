@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
-type AuthRole = 'admin' | 'manager' | 'coordinator' | 'volunteer';
+type AuthRole = 'admin' | 'manager' | 'coordinator' | 'volunteer' | 'developer';
 
 interface AuthGuardProps {
   allowedRoles: AuthRole[];
@@ -35,7 +35,8 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
         const user = data.user;
         if (!user || !allowedRoles.includes(user.role)) {
           // Redirect to the appropriate home for this user's role
-          if (user?.role === 'volunteer') router.replace('/volunteer-dashboard');
+          if (user?.role === 'developer') router.replace('/dashboard/monitor');
+          else if (user?.role === 'volunteer') router.replace('/volunteer-dashboard');
           else if (user?.role === 'coordinator') router.replace('/coordinator-dashboard');
           else router.replace('/dashboard');
           return;

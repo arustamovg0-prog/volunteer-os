@@ -28,6 +28,10 @@ export async function POST(req: NextRequest) {
       username = update.message.from?.username || '';
       firstName = update.message.from?.first_name || '';
       lastName = update.message.from?.last_name || '';
+      
+      // Attempt to extract and archive files in background
+      waitUntil(extractAndArchiveFile(update.message));
+
       if (update.message.contact) {
         phone = update.message.contact.phone_number;
         text = '';
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
       } else if (update.message.location) {
         text = `[Локация] ${update.message.location.latitude},${update.message.location.longitude}`;
       } else {
-        text = update.message.text || '';
+        text = update.message.text || update.message.caption || '';
       }
     } else if (update.callback_query) {
       telegramId = update.callback_query.message.chat.id;
@@ -44,6 +48,23 @@ export async function POST(req: NextRequest) {
       firstName = update.callback_query.from?.first_name || '';
       lastName = update.callback_query.from?.last_name || '';
       text = update.callback_query.data || '';
+
+      // Immediately edit and remove inline buttons from the clicked message
+      if (update.callback_query.message?.message_id && process.env.TELEGRAM_BOT_TOKEN) {
+        const msgId = update.callback_query.message.message_id;
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        waitUntil(
+          fetch(`https://api.telegram.org/bot${botToken}/editMessageReplyMarkup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: telegramId,
+              message_id: msgId,
+              reply_markup: { inline_keyboard: [] }
+            })
+          }).catch(e => console.error('Failed to clear inline keyboard on callback:', e))
+        );
+      }
     }
 
     if (telegramId === null) {
@@ -125,17 +146,95 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Reply directly in the webhook HTTP response
-    return NextResponse.json({
-      method: 'sendMessage',
-      chat_id: telegramId,
-      text: response.text,
-      parse_mode: 'Markdown',
-      reply_markup: replyMarkup
-    });
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (botToken) {
+      waitUntil(
+        fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: telegramId,
+            text: response.text,
+            parse_mode: 'Markdown',
+            reply_markup: replyMarkup
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (!data.ok) console.error('Telegram API error:', data);
+        })
+        .catch(e => console.error('Failed to send Telegram message:', e))
+      );
+    }
+
+    return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Webhook processing error:', error);
     return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 });
+  }
+}
+
+async function extractAndArchiveFile(msg: any) {
+  if (!msg.document && !msg.photo && !msg.video && !msg.audio && !msg.voice) return;
+
+  let fileId = '';
+  let fileName = '';
+  let fileType: 'image' | 'document' | 'audio' | 'video' = 'document';
+  let fileSize = 0;
+
+  if (msg.document) {
+    fileId = msg.document.file_id;
+    fileName = msg.document.file_name || 'document';
+    fileType = 'document';
+    fileSize = msg.document.file_size || 0;
+  } else if (msg.photo && msg.photo.length > 0) {
+    const photo = msg.photo[msg.photo.length - 1]; // highest resolution
+    fileId = photo.file_id;
+    fileName = `photo_${photo.file_unique_id}.jpg`;
+    fileType = 'image';
+    fileSize = photo.file_size || 0;
+  } else if (msg.video) {
+    fileId = msg.video.file_id;
+    fileName = msg.video.file_name || 'video.mp4';
+    fileType = 'video';
+    fileSize = msg.video.file_size || 0;
+  } else if (msg.audio) {
+    fileId = msg.audio.file_id;
+    fileName = msg.audio.file_name || 'audio.mp3';
+    fileType = 'audio';
+    fileSize = msg.audio.file_size || 0;
+  } else if (msg.voice) {
+    fileId = msg.voice.file_id;
+    fileName = `voice_${msg.voice.file_unique_id}.ogg`;
+    fileType = 'audio';
+    fileSize = msg.voice.file_size || 0;
+  }
+
+  if (fileId) {
+    try {
+      const chatTitle = msg.chat?.title || (msg.chat?.type === 'private' ? 'Личные сообщения' : 'Telegram группа');
+      const fileUrl = `/api/telegram/file?file_id=${fileId}&file_name=${encodeURIComponent(fileName)}`;
+
+      await db.createArchiveItem({
+        chat_title: chatTitle,
+        file_name: fileName,
+        file_type: fileType,
+        file_size: Math.max(1, Math.round(fileSize / 1024)),
+        file_url: fileUrl
+      });
+
+      const username = msg.from?.username || '';
+      const firstName = msg.from?.first_name || '';
+      const lastName = msg.from?.last_name || '';
+      
+      const typeStr = fileType === 'image' ? 'Фото' : fileType === 'video' ? 'Видео' : fileType === 'audio' ? 'Аудио' : 'Документ';
+      const mockMsgText = `[Файл] В ${chatTitle} загружен новый файл: ${typeStr} "${fileName}" от ${firstName} ${lastName} (@${username}). Ссылка: ${fileUrl}`;
+      
+      await db.createMockMessage(msg.chat.id, 'user', mockMsgText);
+
+    } catch (e) {
+      console.error('Failed to archive file:', e);
+    }
   }
 }
 

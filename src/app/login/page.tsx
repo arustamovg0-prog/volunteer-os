@@ -16,7 +16,7 @@ import {
   UserRound,
 } from 'lucide-react';
 
-type Segment = 'leader' | 'coordinator' | 'volunteer';
+type Segment = 'leader' | 'coordinator' | 'volunteer' | 'developer';
 
 const segments = [
   {
@@ -58,6 +58,19 @@ const segments = [
     textAccent: 'text-emerald-600',
     hint: 'Например: ivan',
   },
+  {
+    id: 'developer' as Segment,
+    label: 'Разработчик Системы',
+    sublabel: 'Доступ 24/7 к логам и здоровью',
+    description: 'Автономная панель мониторинга, просмотр критических ошибок, системных логов и метрик БД/сервера.',
+    icon: Shield,
+    color: 'purple',
+    bg: 'bg-purple-700',
+    ring: 'ring-purple-700',
+    border: 'border-purple-700',
+    textAccent: 'text-purple-700',
+    hint: 'Логин: developer',
+  },
 ];
 
 function LoginForm() {
@@ -68,6 +81,7 @@ function LoginForm() {
   // Determine initial segment from URL param
   const rawRole = searchParams.get('role');
   const initialSegment: Segment | null =
+    rawRole === 'developer' ? 'developer' :
     rawRole === 'volunteer' ? 'volunteer' :
     rawRole === 'coordinator' ? 'coordinator' :
     rawRole === 'manager' || rawRole === 'leader' ? 'leader' : null;
@@ -156,7 +170,7 @@ function LoginForm() {
 
           {/* Segment cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {segments.map((seg) => {
+            {segments.filter((seg) => seg.id !== 'developer').map((seg) => {
               const Icon = seg.icon;
               return (
                 <button

