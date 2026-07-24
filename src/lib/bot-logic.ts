@@ -298,54 +298,72 @@ export async function handleBotUpdate(
 
   if (session) {
     if (session.state === 'awaiting_checkin') {
-      if (cleanText.length < 5) {
+      if (cleanText === 'Отмена' || cleanText.startsWith('/') || cleanText.startsWith('cmd_')) {
+        await db.clearTelegramSession(telegramId);
+        if (cleanText === 'Отмена') {
+          return {
+            text: '❌ Действие отменено.',
+            keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
+          };
+        }
+      } else {
+        if (cleanText.length < 5) {
+          return {
+            text: '⚠️ Описание работы слишком короткое. Пожалуйста, опишите проделанную работу подробнее (минимум 5 символов):'
+          };
+        }
+
+        const taskId = session.data.task_id;
+        const task = await db.getTask(taskId);
+        if (!task) {
+          await db.clearTelegramSession(telegramId);
+          return { text: '⚠️ Ошибка: задача не найдена.' };
+        }
+
+        // Voice simulation check: if text is a mock voice message
+        let reportText = cleanText;
+        let isVoice = false;
+        if (cleanText.startsWith('[Голосовое сообщение]')) {
+          isVoice = true;
+          reportText = cleanText.replace('[Голосовое сообщение]', '').trim() || 'Выполнена закупка и доставка необходимых материалов согласно списку задач проекта.';
+        }
+
+        // Create check-in record directly in check_ins table
+        await db.createCheckIn({
+          user_id: user.id,
+          project_id: task.project_id,
+          text_report: isVoice ? `🎤 [ИИ-Расшифровка]: ${reportText}` : reportText,
+          hours: 2.0, // default hours registered
+          check_in_at: new Date().toISOString()
+        });
+
+        // Update task status to completed
+        await db.updateTask(taskId, {
+          status: 'completed'
+        });
+
+        // Clear session
+        await db.clearTelegramSession(telegramId);
+
         return {
-          text: '⚠️ Описание работы слишком короткое. Пожалуйста, опишите проделанную работу подробнее (минимум 5 символов):'
+          text: `🎉 *Чек-ин успешно сохранен!*\n\n${isVoice ? `🎤 *ИИ-Расшифровка голосового сообщения:*\n_"${reportText}"_\n\n` : ''}Задача переведена в статус *Выполнена*. Запись добавлена в таблицу Check_ins (Засчитано часов: 2.0). Рейтинг волонтера обновлен! 🌟`,
+          keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
         };
       }
-
-      const taskId = session.data.task_id;
-      const task = await db.getTask(taskId);
-      if (!task) {
-        await db.clearTelegramSession(telegramId);
-        return { text: '⚠️ Ошибка: задача не найдена.' };
-      }
-
-      // Voice simulation check: if text is a mock voice message
-      let reportText = cleanText;
-      let isVoice = false;
-      if (cleanText.startsWith('[Голосовое сообщение]')) {
-        isVoice = true;
-        reportText = cleanText.replace('[Голосовое сообщение]', '').trim() || 'Выполнена закупка и доставка необходимых материалов согласно списку задач проекта.';
-      }
-
-      // Create check-in record directly in check_ins table
-      await db.createCheckIn({
-        user_id: user.id,
-        project_id: task.project_id,
-        text_report: isVoice ? `🎤 [ИИ-Расшифровка]: ${reportText}` : reportText,
-        hours: 2.0, // default hours registered
-        check_in_at: new Date().toISOString()
-      });
-
-      // Update task status to completed
-      await db.updateTask(taskId, {
-        status: 'completed'
-      });
-
-      // Clear session
-      await db.clearTelegramSession(telegramId);
-
-      return {
-        text: `🎉 *Чек-ин успешно сохранен!*\n\n${isVoice ? `🎤 *ИИ-Расшифровка голосового сообщения:*\n_"${reportText}"_\n\n` : ''}Задача переведена в статус *Выполнена*. Запись добавлена в таблицу Check_ins (Засчитано часов: 2.0). Рейтинг волонтера обновлен! 🌟`,
-        keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
-      };
     }
     
     if (session.state === 'awaiting_location_checkin' || session.state === 'awaiting_location_checkout') {
-      if (!cleanText.startsWith('[Локация]')) {
+      if (cleanText === 'Отмена' || cleanText.startsWith('/') || cleanText.startsWith('cmd_')) {
+        await db.clearTelegramSession(telegramId);
+        if (cleanText === 'Отмена') {
+          return {
+            text: '❌ Действие отменено.',
+            keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
+          };
+        }
+      } else if (!cleanText.startsWith('[Локация]')) {
         return {
-          text: '⚠️ Пожалуйста, используйте кнопку "📍 Отправить локацию" внизу экрана, чтобы поделиться своим местоположением.',
+          text: '⚠️ Пожалуйста, используйте кнопку "📍 Отправить локацию" внизу экрана, чтобы поделиться своим местоположением.\n\nНажмите "Отмена", чтобы выйти.',
           keyboard: [
             [{ text: '📍 Отправить локацию', request_location: true }],
             [{ text: 'Отмена' }]
