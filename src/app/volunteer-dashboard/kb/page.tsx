@@ -203,8 +203,6 @@ export default function VolunteerKBPage() {
             dangerouslySetInnerHTML={renderMarkdown(selectedArticle.content)}
           />
         </div>
-
-        <VolunteerBottomNav />
       </div>
     );
   }
@@ -281,8 +279,6 @@ export default function VolunteerKBPage() {
           ))
         )}
       </div>
-
-      <VolunteerBottomNav />
     </div>
   );
 }

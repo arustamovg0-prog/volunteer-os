@@ -732,9 +732,6 @@ export default function VolunteerProjectsPage() {
           </div>
         </div>
       )}
-
-      {/* Bottom Navigation */}
-      <VolunteerBottomNav />
     </div>
   );
 }

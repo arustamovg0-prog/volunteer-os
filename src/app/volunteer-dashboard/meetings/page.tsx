@@ -260,9 +260,6 @@ export default function VolunteerMeetingsPage() {
           </div>
         </div>
       )}
-
-      {/* Bottom Navigation */}
-      <VolunteerBottomNav />
     </div>
   );
 }

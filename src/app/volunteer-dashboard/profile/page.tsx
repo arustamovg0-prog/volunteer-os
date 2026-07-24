@@ -456,10 +456,6 @@ export default function VolunteerProfilePage() {
           </div>
         )}
       </div>
-
-      {/* Bottom Nav */}
-      <VolunteerBottomNav />
-
     </div>
   );
 }

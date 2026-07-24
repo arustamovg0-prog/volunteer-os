@@ -1,0 +1,25 @@
+[
+  {
+    "id": "kb_1784870517286_ky0qf",
+    "timestamp": "2026-07-24T05:21:57.286Z",
+    "category": "Системное Обучение и Модули",
+    "query": "Обучение и Фиксации запросов. Анализировать каждый запрос и ответ, фиксировать и запоминать, обучаться на них. Формировать базу знаний и шпаргалку. Запускать модуль обучения после каждого запроса.",
+    "solution": "Внедрен автоматический Модуль Обучения (src/lib/learning-module.ts). Все входящие запросы и ответы авто-индексируются в локальную базу знаний docs/AI_KNOWLEDGE_BASE.md, docs/ai_knowledge_base.json и базу данных PostgreSQL. После каждого вызова скрипт train-learning-module.ts запускает переобучение и обновление базы решений.",
+    "tags": [
+      "ai-learning"
+    ],
+    "source": "user_instruction"
+  },
+  {
+    "id": "kb_1784870449234_hkutv",
+    "timestamp": "2026-07-24T05:20:49.234Z",
+    "category": "Проверка Работоспособности Системы",
+    "query": "работает ли модуль",
+    "solution": "Да, Модуль Обучения Volunteer OS полностью работает и находится в активном состоянии (ACTIVE_TRAINING_ENABLED). Все запросы и ответы фиксируются в Базе Знаний (docs/AI_KNOWLEDGE_BASE.md, docs/ai_knowledge_base.json и PostgreSQL) и используются для обучения и устранения проблем.",
+    "tags": [
+      "telegram-bot",
+      "volunteers"
+    ],
+    "source": "user_interactive_query"
+  }
+]

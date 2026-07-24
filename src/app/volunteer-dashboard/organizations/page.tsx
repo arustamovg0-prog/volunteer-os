@@ -126,7 +126,10 @@ export default function VolunteerOrganizationsPage() {
   const categories = ['Все', 'Экология', 'Защита животных', 'Социальная помощь', 'Здравоохранение', 'Образование'];
 
   useEffect(() => {
-    const cachedId = localStorage.getItem('volunteerId');
+    const cachedId = localStorage.getItem('volunteerId') || localStorage.getItem('currentUserId');
+    if (cachedId) {
+      localStorage.setItem('volunteerId', cachedId);
+    }
     setVolunteerId(cachedId);
     loadInitialData(cachedId);
   }, []);
@@ -164,8 +167,20 @@ export default function VolunteerOrganizationsPage() {
           setProjects(await projRes.json());
           setTasks(await tasksRes.json());
         } else {
-          localStorage.removeItem('volunteerId');
-          setVolunteerId(null);
+          // Keep currentId if user exists
+          setVolunteer({ id: currentId, full_name: localStorage.getItem('currentUserName') || 'Волонтер', role: 'volunteer', rating: 5.0 });
+          const [orgsRes, newsRes, membRes, projRes, tasksRes] = await Promise.all([
+            fetch('/api/organizations'),
+            fetch('/api/organizations/news'),
+            fetch(`/api/organizations/memberships?userId=${currentId}`),
+            fetch('/api/projects'),
+            fetch('/api/tasks')
+          ]);
+          setOrganizations(await orgsRes.json());
+          setNews(await newsRes.json());
+          setMemberships(await membRes.json());
+          setProjects(await projRes.json());
+          setTasks(await tasksRes.json());
         }
       }
     } catch (e) {
@@ -198,7 +213,11 @@ export default function VolunteerOrganizationsPage() {
 
   const handleJoinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedOrg || !volunteerId) return;
+    const activeUserId = volunteerId || localStorage.getItem('volunteerId') || localStorage.getItem('currentUserId');
+    if (!selectedOrg || !activeUserId) {
+      alert('Пожалуйста, войдите в систему под профилем волонтера.');
+      return;
+    }
     setIsSubmittingJoin(true);
 
     try {
@@ -207,25 +226,28 @@ export default function VolunteerOrganizationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           org_id: selectedOrg.id,
-          user_id: volunteerId,
+          user_id: activeUserId,
           cover_letter: coverLetter
         })
       });
 
       if (res.ok) {
-        setAlertMessage('Заявка на вступление успешно отправлена!');
-        setTimeout(() => setAlertMessage(null), 3000);
+        setAlertMessage('🎉 Заявка на вступление успешно отправлена!');
+        setTimeout(() => setAlertMessage(null), 4000);
         setCoverLetter('');
         
         // Refresh memberships
-        const membRes = await fetch(`/api/organizations/memberships?userId=${volunteerId}`);
-        setMemberships(await membRes.json());
+        const membRes = await fetch(`/api/organizations/memberships?userId=${activeUserId}`);
+        if (membRes.ok) {
+          setMemberships(await membRes.json());
+        }
       } else {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({}));
         alert(errorData.error || 'Ошибка при отправке заявки');
       }
     } catch (err) {
       console.error('Failed to send join request', err);
+      alert('Ошибка сети при отправке заявки.');
     } finally {
       setIsSubmittingJoin(false);
     }
@@ -352,12 +374,12 @@ export default function VolunteerOrganizationsPage() {
       </div>
 
       {/* Category Tabs Scroll */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1.5 no-scrollbar scroll-smooth">
+      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all whitespace-nowrap cursor-pointer ${
+            className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap cursor-pointer ${
               selectedCategory === cat
                 ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -605,11 +627,11 @@ export default function VolunteerOrganizationsPage() {
 
                         <button
                           type="submit"
-                          disabled={coverLetter.trim().length < 5 || isSubmittingJoin}
-                          className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 text-white font-bold text-xs transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:text-slate-400"
+                          disabled={isSubmittingJoin}
+                          className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                         >
-                          <Send className="w-3.5 h-3.5" />
-                          {isSubmittingJoin ? 'Отправка...' : 'Отправить заявку'}
+                          <Send className="w-4 h-4" />
+                          {isSubmittingJoin ? 'Отправка заявки...' : 'Отправить заявку'}
                         </button>
                       </form>
                     )}
@@ -788,9 +810,6 @@ export default function VolunteerOrganizationsPage() {
           </div>
         </div>
       )}
-
-      {/* Navigation */}
-      <VolunteerBottomNav />
     </div>
   );
 }

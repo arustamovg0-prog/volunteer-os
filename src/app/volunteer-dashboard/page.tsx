@@ -826,9 +826,6 @@ export default function VolunteerDashboard() {
         )}
       </div>
 
-      {/* Bottom Nav */}
-      <VolunteerBottomNav />
-
       {/* Check-in Reporting Modal */}
       {reportingTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">

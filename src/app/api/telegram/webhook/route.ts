@@ -3,6 +3,7 @@ import { handleBotUpdate } from '@/lib/bot-logic';
 import { db } from '@/lib/db';
 import { rateLimitRequest, validateTelegramSecret } from '@/lib/security';
 import { generateLeaderKnowledgeAnswer, isLeaderMention } from '@/lib/leader-ai';
+import { recordAndLearnQueryResponse } from '@/lib/learning-module';
 import { waitUntil } from '@vercel/functions';
 
 export async function POST(req: NextRequest) {
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
         if (isLeaderMention(text)) {
           const answer = await generateLeaderKnowledgeAnswer(groupText);
           waitUntil(db.createMockMessage(telegramId, 'bot', answer.text).catch(e => console.error('Failed to save bot mock message:', e)));
+          waitUntil(recordAndLearnQueryResponse({ query: text, response: answer.text, category: 'Telegram Вопросы Руководителю', source: 'telegram_group' }).catch(e => console.error('Learning error:', e)));
 
           return NextResponse.json({
             method: 'sendMessage',
@@ -114,7 +116,7 @@ export async function POST(req: NextRequest) {
       response = { text: '👋 Добро пожаловать! Отправьте /start для начала работы.' };
     }
 
-    // Save bot response to simulator history (in background)
+    // Save bot response to simulator history & learn (in background)
     waitUntil(
       db.createMockMessage(
         telegramId,
@@ -123,6 +125,9 @@ export async function POST(req: NextRequest) {
         response.keyboard
       ).catch(e => console.error('Failed to save bot mock message:', e))
     );
+    if (text && response?.text) {
+      waitUntil(recordAndLearnQueryResponse({ query: text, response: response.text, category: 'Telegram Бот Интерактив', source: 'telegram_private' }).catch(e => console.error('Learning error:', e)));
+    }
 
     // Format reply markup for Telegram
     let replyMarkup: any = undefined;

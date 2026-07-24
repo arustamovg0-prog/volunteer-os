@@ -695,10 +695,6 @@ export default function VolunteerLeaderboardPage() {
           </div>
         </div>
       )}
-
-      {/* Bottom Nav */}
-      <VolunteerBottomNav />
-
     </div>
   );
 }

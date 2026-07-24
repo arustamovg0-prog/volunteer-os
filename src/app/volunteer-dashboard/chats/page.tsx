@@ -524,9 +524,6 @@ export default function VolunteerChatsPage() {
           </div>
         )}
       </div>
-
-      {/* Bottom Navigation */}
-      <VolunteerBottomNav />
     </div>
   );
 }
