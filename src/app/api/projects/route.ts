@@ -56,20 +56,21 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH /api/projects — assign a coordinator to a project
+// PATCH /api/projects — update project status, coordinator, or location
 export async function PATCH(req: NextRequest) {
   try {
     const auth = requireSessionRequest(req, ['admin', 'manager']);
     if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const { projectId, coordinatorId, latitude, longitude, allowed_radius_km } = body;
+    const { projectId, coordinatorId, status, latitude, longitude, allowed_radius_km } = body;
 
     if (!projectId) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
     }
 
     const updates: any = {};
+    if (status !== undefined) updates.status = status;
     if (coordinatorId !== undefined) updates.coordinator_id = coordinatorId || null;
     if (latitude !== undefined) updates.latitude = latitude === null ? null : parseFloat(latitude);
     if (longitude !== undefined) updates.longitude = longitude === null ? null : parseFloat(longitude);
@@ -78,7 +79,7 @@ export async function PATCH(req: NextRequest) {
     const updated = await db.updateProject(projectId, updates);
     return NextResponse.json(updated);
   } catch (error) {
-    console.error('Failed to assign coordinator:', error);
-    return NextResponse.json({ error: 'Failed to assign coordinator' }, { status: 500 });
+    console.error('Failed to update project:', error);
+    return NextResponse.json({ error: 'Failed to update project' }, { status: 500 });
   }
 }

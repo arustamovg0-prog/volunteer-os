@@ -505,7 +505,45 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
             Назад к проектам
           </Link>
           
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">{project.title}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">{project.title}</h2>
+            {['admin', 'manager'].includes(role) ? (
+              <select
+                value={project.status}
+                onChange={async (e) => {
+                  const newStatus = e.target.value as any;
+                  await fetch('/api/projects', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ projectId: project.id, status: newStatus })
+                  });
+                  fetchData();
+                }}
+                className={`px-2.5 py-1 rounded-full text-xs font-bold border cursor-pointer outline-none transition-all ${
+                  project.status === 'completed'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : project.status === 'active'
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                }`}
+                title="Нажмите, чтобы изменить статус проекта"
+              >
+                <option value="active">🔵 Активен</option>
+                <option value="planning">⏳ Подготовка</option>
+                <option value="completed">✅ Завершен</option>
+              </select>
+            ) : (
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                project.status === 'completed'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : project.status === 'active'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}>
+                {project.status === 'completed' ? '✅ Завершен' : project.status === 'active' ? '🔵 Активен' : '⏳ Подготовка'}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 max-w-2xl">{project.description || 'Описание проекта отсутствует.'}</p>
         </div>
         
