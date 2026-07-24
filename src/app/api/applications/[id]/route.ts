@@ -34,12 +34,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         });
         
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://volunteer-os-zeta.vercel.app';
-        const messageText = `Добро пожаловать, ${application.full_name}! Ваш профиль волонтера создан.
-🌐 Платформа: ${appUrl}/login
+        const autoLoginLink = `${appUrl}/api/auth/auto-login?login=${encodeURIComponent(generatedLogin)}&pass=${encodeURIComponent(plainPassword)}`;
+        const messageText = `🎉 *Добро пожаловать, ${application.full_name}!* Ваш профиль волонтера успешно создан.
+
+🚀 *Вход на сайт в 1 клик (без ввода логина и пароля):*
+${autoLoginLink}
+
+---
+Или войдите вручную:
+🌐 Сайт: ${appUrl}/login?role=volunteer
 👤 Логин: <code>${generatedLogin}</code>
 🔑 Пароль: <code>${plainPassword}</code>
-⚠️ Обязательно сохраните эти данные! Они понадобятся для входа на сайт.
-Напишите /tasks для просмотра ваших задач в боте.`;
+
+Отправьте /tasks в этом боте для просмотра ваших задач!`;
         
         await sendTelegramMessage(Number(application.telegram_id), messageText, undefined, 'HTML').catch(console.error);
 

@@ -481,9 +481,10 @@ export async function handleBotUpdate(
     const userTasks = allTasks.filter(t => t.assigned_to === user!.id);
     const pendingTasks = userTasks.filter(t => t.status !== 'completed');
     const completedTasks = userTasks.filter(t => t.status === 'completed');
+    const autoLoginUrl = `${appUrl}/api/auth/auto-login?tg_id=${telegramId}`;
 
     return {
-      text: `👤 *Ваш профиль волонтера*\n\n🔹 *Имя:* ${user.full_name}\n🔹 *Телефон:* ${user.phone || 'Не указан'}\n🔹 *Рейтинг:* ${user.rating.toFixed(2)} / 5.0\n\n📊 *Статистика задач:*\n— Выполнено: ${completedTasks.length}\n— Активно: ${pendingTasks.length}`,
+      text: `👤 *Ваш профиль волонтера*\n\n🔹 *Имя:* ${user.full_name}\n🔹 *Телефон:* ${user.phone || 'Не указан'}\n🔹 *Рейтинг:* ${user.rating.toFixed(2)} / 5.0\n\n🌐 *Вход на сайт в 1 клик:* [Войти в кабинет](${autoLoginUrl})\n\n📊 *Статистика задач:*\n— Выполнено: ${completedTasks.length}\n— Активно: ${pendingTasks.length}`,
       keyboard: [
         [{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }],
         [{ text: '❓ Справка', callback_data: 'cmd_help' }]
