@@ -496,9 +496,25 @@ export async function handleBotUpdate(
     const userTasks = allTasks.filter(t => t.assigned_to === user!.id && t.status !== 'completed');
 
     if (userTasks.length === 0) {
+      const allProjects = await db.getProjects();
+      const activeProjects = allProjects.filter(p => p.status === 'active' || p.status === 'in_progress' || !p.status);
+
+      if (activeProjects.length === 0) {
+        return {
+          text: '🎉 У вас нет активных задач, и сейчас нет доступных проектов.\n\nКогда менеджеры назначат на вас новую задачу, вы получите уведомление здесь.',
+          keyboard: [[{ text: '👤 Мой Профиль', callback_data: 'cmd_profile' }]]
+        };
+      }
+
+      const keyboard: { text: string; callback_data: string }[][] = [];
+      activeProjects.forEach(proj => {
+        keyboard.push([{ text: `📍 Начать смену: ${proj.title.slice(0, 22)}`, callback_data: `quick_checkin_${proj.id}` }]);
+      });
+      keyboard.push([{ text: '👤 Мой Профиль', callback_data: 'cmd_profile' }]);
+
       return {
-        text: '🎉 У вас нет активных задач! Отличная работа.\n\nКогда менеджеры назначат на вас новую задачу, вы получите уведомление здесь.',
-        keyboard: [[{ text: '👤 Мой Профиль', callback_data: 'cmd_profile' }]]
+        text: '📋 *Доступные проекты для смены:*\n\nВыберите ваш проект ниже, чтобы мгновенно начать смену:',
+        keyboard
       };
     }
 
@@ -595,6 +611,47 @@ export async function handleBotUpdate(
     } catch (e) {
       console.error('RSVP response error:', e);
       return { text: '⚠️ Ошибка при сохранении ответа.' };
+    }
+  }
+
+  // Handle Quick Check-in for volunteers without pre-assigned tasks
+  if (cleanText.startsWith('quick_checkin_')) {
+    const projectId = cleanText.replace('quick_checkin_', '');
+    try {
+      const project = await db.getProject(projectId);
+      if (!project) return { text: '⚠️ Проект не найден.' };
+
+      let task = await prisma.task.findFirst({
+        where: {
+          projectId,
+          assignedTo: user.id
+        }
+      });
+
+      if (!task) {
+        task = await prisma.task.create({
+          data: {
+            projectId,
+            assignedTo: user.id,
+            title: `Смена: ${user.full_name || 'Волонтер'}`,
+            deadline: project.start_date ? new Date(project.start_date) : new Date(),
+            status: 'accepted'
+          }
+        });
+      }
+
+      await db.setTelegramSession(telegramId, 'awaiting_location_checkin', { task_id: task.id });
+
+      return {
+        text: `📍 *Начало смены по проекту:* ${project.title}\n\nДля подтверждения местоположения, нажмите кнопку *📍 Отправить локацию* внизу экрана.`,
+        keyboard: [
+          [{ text: '📍 Отправить локацию', request_location: true }],
+          [{ text: 'Отмена' }]
+        ]
+      };
+    } catch (e) {
+      console.error('Quick checkin error:', e);
+      return { text: '⚠️ Ошибка при начале смены.' };
     }
   }
 
