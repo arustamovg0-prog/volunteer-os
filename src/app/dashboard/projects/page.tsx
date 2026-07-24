@@ -379,61 +379,61 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
                 </div>
 
                 {/* Card footer details */}
-                <div className="flex flex-col gap-2.5 pt-3 border-t border-slate-100">
-                  {/* Footer Line 1: Dates & Coordinator / RSVP stats */}
-                  <div className="flex items-center justify-between text-xs flex-wrap gap-1.5">
+                <div className="flex flex-col gap-2 pt-2.5 border-t border-slate-100">
+                  {/* Footer Line 1: End Date & RSVP stats */}
+                  <div className="flex items-center justify-between text-xs">
                     <span className="text-[10px] text-slate-400 font-medium">
                       Срок до: {proj.end_date ? new Date(proj.end_date).toLocaleDateString('ru-RU') : 'отсутствует'}
                     </span>
 
-                    <div className="flex items-center gap-2">
-                      {(() => {
-                        const rsvpTasks = projTasks.filter(t => t.title.startsWith('RSVP:'));
-                        const yesCount = rsvpTasks.filter(t => t.status === 'accepted').length;
-                        const noCount = rsvpTasks.filter(t => t.status === 'rejected').length;
-                        return rsvpTasks.length > 0 ? (
-                          <span className="text-[10px] font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
-                            👍 <span className="text-emerald-600 font-bold">{yesCount}</span> | 👎 <span className="text-red-500 font-bold">{noCount}</span>
-                          </span>
-                        ) : null;
-                      })()}
+                    {(() => {
+                      const rsvpTasks = projTasks.filter(t => t.title.startsWith('RSVP:'));
+                      const yesCount = rsvpTasks.filter(t => t.status === 'accepted').length;
+                      const noCount = rsvpTasks.filter(t => t.status === 'rejected').length;
+                      return rsvpTasks.length > 0 ? (
+                        <span className="text-[10px] font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-200">
+                          👍 <span className="text-emerald-600 font-bold">{yesCount}</span> | 👎 <span className="text-red-500 font-bold">{noCount}</span>
+                        </span>
+                      ) : null;
+                    })()}
+                  </div>
+                  
+                  {/* Footer Line 2: All 3 Action Buttons on 1 Line (Compact RSVP + Assign + Board link) */}
+                  <div className="flex items-center justify-between gap-1 pt-1">
+                    <button
+                      onClick={() => openRsvpModal(proj)}
+                      className="shrink-0 px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all whitespace-nowrap active:scale-95 shadow-2xs cursor-pointer"
+                      title="Настройка и отправка рассылки (RSVP) волонтерам"
+                    >
+                      <Megaphone className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span>RSVP</span>
+                    </button>
 
+                    <div className="flex items-center gap-2 shrink-0">
                       {role === 'admin' && (
                         <button
                           onClick={() => {
                             setAssigningProjectId(proj.id);
                             setSelectedCoordinatorId(proj.coordinator_id || '');
                           }}
-                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 hover:underline cursor-pointer"
+                          className="shrink-0 text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 whitespace-nowrap cursor-pointer hover:underline"
                           title="Назначить координатора"
                         >
-                          <UserCheck className="w-3 h-3" />
+                          <UserCheck className="w-3 h-3 text-blue-500" />
                           {proj.coordinator_id
                             ? (coordinators.find(c => c.id === proj.coordinator_id)?.full_name?.split(' ')[0] || 'Координатор')
                             : 'Назначить'}
                         </button>
                       )}
-                    </div>
-                  </div>
-                  
-                  {/* Footer Line 2: RSVP Broadcast & Kanban Board Buttons */}
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => openRsvpModal(proj)}
-                      className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap active:scale-95 shadow-2xs cursor-pointer"
-                      title="Настройка и отправка рассылки волонтерам"
-                    >
-                      <Megaphone className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span>Пригласить (RSVP)</span>
-                    </button>
 
-                    <Link 
-                      href={`/dashboard/projects/${proj.id}`}
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1 transition-all whitespace-nowrap shadow-xs active:scale-95 cursor-pointer"
-                    >
-                      <span>Доска</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
+                      <Link 
+                        href={`/dashboard/projects/${proj.id}`}
+                        className="shrink-0 px-2 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold flex items-center gap-0.5 whitespace-nowrap shadow-2xs active:scale-95 cursor-pointer"
+                      >
+                        <span>Доска</span>
+                        <ChevronRight className="w-3 h-3" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
