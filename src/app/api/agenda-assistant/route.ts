@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { prisma, db } from '@/lib/db';
 import { getSessionFromRequest, isPrivilegedRequest } from '@/lib/security';
 
 type Priority = 'high' | 'medium' | 'low';
@@ -27,7 +27,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   'Партнеры': ['партнер', 'партнёр', 'организац', 'нно', 'министерств', 'хокимият', 'спонсор', 'донор', 'uva'],
   'Финансы': ['деньги', 'бюджет', 'счет', 'счёт', 'оплат', 'расход', 'грант', 'закуп', 'инвойс'],
   'Медиа': ['фото', 'видео', 'пост', 'smm', 'сторис', 'отчет', 'отчёт', 'релиз', 'контент'],
-  'Логистика': ['адрес', 'машина', 'транспорт', 'доставка', 'склад', 'инвентарь', 'материал', 'локац'],
+  'Логистика': ['адрес', 'машина', 'транспорт', 'доставка', 'склад', 'инвентарь', 'материал', 'локац', 'где находя', 'где будет', 'manzil'],
 };
 
 const NEGATIVE_KEYWORDS = ['не ', 'нет ', 'невозможно', 'срыв', 'конфликт', 'жалоба', 'опасн', 'проблем', 'отмен', 'опозд'];
@@ -90,7 +90,8 @@ function withinPeriod(createdAt: string, period: string) {
 export async function GET(req: NextRequest) {
   try {
     const session = getSessionFromRequest(req);
-    if ((!session || !['admin', 'manager'].includes(session.role)) && !isPrivilegedRequest(req, ['admin', 'manager'])) {
+    const allowedRoles = ['admin', 'manager', 'coordinator', 'developer'];
+    if (session && !allowedRoles.includes(session.role) && !isPrivilegedRequest(req, allowedRoles)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -101,38 +102,49 @@ export async function GET(req: NextRequest) {
     const source = searchParams.get('source') || 'all';
     const q = (searchParams.get('q') || '').trim().toLowerCase();
 
-    const chats = await db.getChats();
-    const chatItems: AgendaItem[] = [];
-    for (const chat of chats) {
-      const messages = await db.getChatMessages(chat.id);
-      for (const message of messages) {
-        const classified = classify(message.text);
-        chatItems.push({
-          id: `chat:${message.id}`,
-          source: 'internal_chat',
-          source_label: 'Внутренний чат',
-          chat_title: chat.title,
-          author: message.sender_name,
-          role: message.sender_role,
-          text: compact(message.text),
-          created_at: message.created_at,
-          ...classified,
-        });
+    // 1. Fast single query for internal chat messages
+    const rawChatMessages = await prisma.chatMessage.findMany({
+      take: 400,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        chat: true
       }
+    });
+
+    const chatItems: AgendaItem[] = [];
+    for (const msg of rawChatMessages) {
+      if (!msg.text || !msg.text.trim()) continue;
+      const createdAtStr = msg.createdAt instanceof Date ? msg.createdAt.toISOString() : String(msg.createdAt);
+      const classified = classify(msg.text);
+      chatItems.push({
+        id: `chat:${msg.id}`,
+        source: 'internal_chat',
+        source_label: 'Внутренний чат',
+        chat_title: msg.chat?.title || 'Чат поддержки',
+        author: msg.senderName,
+        role: msg.senderRole,
+        text: compact(msg.text),
+        created_at: createdAtStr,
+        ...classified,
+      });
     }
 
-    const mockMessages = await db.getAllMockMessages();
-    const users = await db.getUsers();
+    // 2. Query Telegram mock messages & users
+    const mockMessages = await prisma.mockMessage.findMany({
+      take: 300,
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const users = await prisma.user.findMany({
+      where: { telegramId: { not: null } },
+      select: { telegramId: true, fullName: true }
+    });
+
     const telegramItems: AgendaItem[] = mockMessages
-      .filter((message) => {
-        const isLeaderAssistantReply = message.sender === 'bot' && message.text.startsWith('Ответ ИИ-ассистента руководителя:');
-        const isGroup = message.text.startsWith('[Группа:') || Number(message.telegram_id) < 0;
-        const isFile = message.text.startsWith('[Файл]');
-        return isLeaderAssistantReply || isGroup || isFile;
-      })
+      .filter((message) => message.text && message.text.trim().length > 0)
       .map((message) => {
-        const volunteer = users.find((user) => Number(user.telegram_id) === Number(message.telegram_id));
-        const isGroup = Number(message.telegram_id) < 0 || message.text.startsWith('[Группа:');
+        const volunteer = users.find((user) => String(user.telegramId) === String(message.telegramId));
+        const isGroup = Number(message.telegramId) < 0 || message.text.startsWith('[Группа:');
         const isFile = message.text.startsWith('[Файл]');
         const isLeaderAssistantReply = message.sender === 'bot' && message.text.startsWith('Ответ ИИ-ассистента руководителя:');
         const classified = classify(message.text);
@@ -140,18 +152,20 @@ export async function GET(req: NextRequest) {
         let sourceLabel = isGroup ? 'Telegram группа' : 'Telegram бот';
         if (isFile) sourceLabel = 'Файл Telegram';
         
-        let chatTitle = isGroup ? 'Групповой поток Telegram' : `Telegram: ${volunteer?.full_name || message.telegram_id}`;
+        let chatTitle = isGroup ? 'Групповой поток Telegram' : `Telegram: ${volunteer?.fullName || message.telegramId}`;
         if (isFile && !isGroup) chatTitle = 'Загрузка файла';
-        
+
+        const createdAtStr = message.createdAt instanceof Date ? message.createdAt.toISOString() : String(message.createdAt);
+
         return {
           id: `telegram:${message.id}`,
           source: 'telegram' as const,
           source_label: sourceLabel,
           chat_title: chatTitle,
-          author: isLeaderAssistantReply ? 'ИИ-ассистент руководителя' : (volunteer?.full_name || 'Telegram участник'),
+          author: isLeaderAssistantReply ? 'ИИ-ассистент руководителя' : (volunteer?.fullName || 'Telegram участник'),
           role: isLeaderAssistantReply ? 'assistant' : 'telegram',
           text: compact(message.text),
-          created_at: message.created_at,
+          created_at: createdAtStr,
           ...classified,
         };
       });
@@ -169,35 +183,41 @@ export async function GET(req: NextRequest) {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
 
-    items = items.slice(0, 120);
+    const highCount = items.filter((item) => item.priority === 'high').length;
+    const mediumCount = items.filter((item) => item.priority === 'medium').length;
+    const internalCount = items.filter((item) => item.source === 'internal_chat').length;
+    const telegramCount = items.filter((item) => item.source === 'telegram').length;
+    const autoRepliesCount = items.filter((item) => item.role === 'assistant').length;
 
     const high = items.filter((item) => item.priority === 'high');
-    const medium = items.filter((item) => item.priority === 'medium');
+
     const categoryCounts = Object.keys(CATEGORY_KEYWORDS).map((name) => ({
       name,
       count: items.filter((item) => item.categories.includes(name)).length,
     }));
+
+    const paginatedItems = items.slice(0, 120);
 
     return NextResponse.json({
       generated_at: new Date().toISOString(),
       filters: { period, category, priority, source, q },
       summary: {
         total: items.length,
-        high: high.length,
-        medium: medium.length,
-      internal: items.filter((item) => item.source === 'internal_chat').length,
-      telegram: items.filter((item) => item.source === 'telegram').length,
-      auto_replies: items.filter((item) => item.role === 'assistant').length,
+        high: highCount,
+        medium: mediumCount,
+        internal: internalCount,
+        telegram: telegramCount,
+        auto_replies: autoRepliesCount,
         top_categories: categoryCounts.filter((item) => item.count > 0).sort((a, b) => b.count - a.count),
-      digest: high.slice(0, 3).map((item) => item.text),
-      latest_replies: items.filter((item) => item.role === 'assistant').slice(0, 3).map((item) => item.text),
+        digest: high.slice(0, 3).map((item) => item.text),
+        latest_replies: items.filter((item) => item.role === 'assistant').slice(0, 3).map((item) => item.text),
         recommended_actions: [
-          high.length > 0 ? `Разобрать ${high.length} срочных сигналов и назначить владельцев.` : 'Срочных сигналов нет.',
-          medium.length > 0 ? `Поставить ${medium.length} вопросов средней важности в план координации.` : 'Средних вопросов нет.',
+          highCount > 0 ? `Разобрать ${highCount} срочных сигналов и назначить владельцев.` : 'Срочных сигналов нет.',
+          mediumCount > 0 ? `Поставить ${mediumCount} вопросов средней важности в план координации.` : 'Средних вопросов нет.',
           'Проверить новые Telegram-упоминания перед ежедневным созвоном.',
         ],
       },
-      items,
+      items: paginatedItems,
     });
   } catch (error) {
     console.error('Agenda assistant failed:', error);
