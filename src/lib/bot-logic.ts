@@ -3,6 +3,7 @@ import { hashPassword } from './security';
 import crypto from 'crypto';
 import { t } from './bot-i18n';
 import { logSystemEvent } from './logger';
+import { isWithinRadius } from './geo';
 
 export interface BotResponse {
   text: string;
@@ -357,40 +358,109 @@ export async function handleBotUpdate(
       const lat = parseFloat(latStr);
       const lon = parseFloat(lonStr);
       const taskId = session.data.task_id;
+      const isCheckin = session.state === 'awaiting_location_checkin';
 
       try {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        const endpoint = session.state === 'awaiting_location_checkin' ? '/api/checkins/start' : '/api/checkins/end';
-        
-        const res = await fetch(`${baseUrl}${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const task = await db.getTask(taskId);
+        if (!task) {
+          await db.clearTelegramSession(telegramId);
+          return { text: '⚠️ Задача не найдена.' };
+        }
+
+        const project = await db.getProject(task.project_id);
+        if (!project) {
+          await db.clearTelegramSession(telegramId);
+          return { text: '⚠️ Проект не найден.' };
+        }
+
+        // Validate distance if project has geolocation set
+        if (project.latitude && project.longitude) {
+          const allowedRadius = (project as any).allowedRadiusKm || 0.5;
+          const { valid, distanceKm } = isWithinRadius(lat, lon, project.latitude, project.longitude, allowedRadius);
+          if (!valid) {
+            return {
+              text: `❌ *Вы находитесь слишком далеко от места проведения!*\n\nВаше расстояние: *${(distanceKm * 1000).toFixed(0)}м*\nРазрешенный радиус: *${(allowedRadius * 1000).toFixed(0)}м*\n\nПожалуйста, подойдите ближе и отправьте локацию еще раз.`,
+              keyboard: [
+                [{ text: '📍 Отправить локацию', request_location: true }],
+                [{ text: 'Отмена' }]
+              ]
+            };
+          }
+        }
+
+        // Handle Check-in / Check-out directly in DB
+        const activeCheckIn = await prisma.checkIn.findFirst({
+          where: {
             userId: user.id,
-            taskId,
-            latitude: lat,
-            longitude: lon
-          })
+            projectId: task.project_id,
+            checkOutAt: null
+          }
         });
 
-        const data = await res.json();
-        
-        if (res.ok) {
+        if (isCheckin) {
+          if (activeCheckIn) {
+            await db.clearTelegramSession(telegramId);
+            return {
+              text: '⚠️ У вас уже есть активная смена на этом проекте.',
+              keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
+            };
+          }
+
+          await prisma.checkIn.create({
+            data: {
+              userId: user.id,
+              projectId: task.project_id,
+              checkInAt: new Date(),
+              checkInLat: lat,
+              checkInLng: lon
+            }
+          });
+
           await db.clearTelegramSession(telegramId);
           return {
-            text: session.state === 'awaiting_location_checkin' 
-              ? `✅ *Успешный Чекин!*\nВы находитесь в разрешенной зоне.\nЖелаем продуктивной смены! 🚀`
-              : `🏁 *Успешный Чекаут!*\nСмена завершена. Теперь можете сдать отчет по задаче.`,
+            text: `✅ *Успешный Чекин!*\nВы находитесь в разрешенной зоне.\nЖелаем продуктивной смены! 🚀`,
             keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
           };
         } else {
+          // Checkout
+          if (!activeCheckIn) {
+            await db.clearTelegramSession(telegramId);
+            return {
+              text: '⚠️ У вас нет активной смены для завершения.',
+              keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
+            };
+          }
+
+          const checkOutAt = new Date();
+          const checkInAt = new Date(activeCheckIn.checkInAt);
+          const diffMs = checkOutAt.getTime() - checkInAt.getTime();
+          const hours = Math.max(0.1, Math.round((diffMs / (1000 * 60 * 60)) * 100) / 100);
+
+          await prisma.checkIn.update({
+            where: { id: activeCheckIn.id },
+            data: {
+              checkOutAt,
+              checkOutLat: lat,
+              checkOutLng: lon,
+              hours
+            }
+          });
+
+          try {
+            await db.addXpToVolunteer(user.id, Math.round(hours * 15));
+          } catch (e) {
+            console.error('Failed to reward XP for check-out:', e);
+          }
+
+          await db.clearTelegramSession(telegramId);
           return {
-            text: `❌ *Ошибка:* ${data.error || 'Не удалось выполнить действие'}\nВозможно, вы находитесь слишком далеко от места проведения.`
+            text: `🏁 *Успешный Чекаут!*\nСмена завершена. Засчитано часов: *${hours} ч*.\nОтличная работа! 🌟`,
+            keyboard: [[{ text: '📋 Мои Задачи', callback_data: 'cmd_tasks' }]]
           };
         }
       } catch (e) {
         console.error('Bot Checkin Error:', e);
-        return { text: '⚠️ Ошибка сервера. Попробуйте позже.' };
+        return { text: '⚠️ Ошибка при обработке гео-чекина. Попробуйте еще раз.' };
       }
     }
   }
@@ -498,7 +568,7 @@ export async function handleBotUpdate(
       });
 
       const newStatus = isYes ? 'accepted' : 'rejected';
-      const deadlineDate = project.startDate ? new Date(project.startDate) : new Date();
+      const deadlineDate = project.start_date ? new Date(project.start_date) : new Date();
 
       if (existingTask) {
         await prisma.task.update({
@@ -510,7 +580,7 @@ export async function handleBotUpdate(
           data: {
             projectId,
             assignedTo: user.id,
-            title: `RSVP: ${user.full_name || user.fullName || 'Волонтер'}`,
+            title: `RSVP: ${user.full_name || 'Волонтер'}`,
             deadline: deadlineDate,
             status: newStatus
           }
