@@ -7,7 +7,7 @@ import { waitUntil } from '@vercel/functions';
 
 export async function POST(req: NextRequest) {
   try {
-    const rateLimitError = rateLimitRequest(req, 'telegram-webhook', 120, 60 * 1000);
+    const rateLimitError = rateLimitRequest(req, 'telegram-webhook', 5000, 60 * 1000);
     if (rateLimitError) return rateLimitError;
 
     if (!validateTelegramSecret(req)) {
