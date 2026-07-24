@@ -24,13 +24,13 @@ export async function POST(req: NextRequest) {
     let phone: string | null = null;
 
     if (update.message) {
-      telegramId = update.message.chat.id;
+      telegramId = update.message.chat?.id || update.message.from?.id || null;
       username = update.message.from?.username || '';
       firstName = update.message.from?.first_name || '';
       lastName = update.message.from?.last_name || '';
       
       // Attempt to extract and archive files in background
-      waitUntil(extractAndArchiveFile(update.message));
+      waitUntil(extractAndArchiveFile(update.message).catch(e => console.error('Archive file error:', e)));
 
       if (update.message.contact) {
         phone = update.message.contact.phone_number;
@@ -43,14 +43,14 @@ export async function POST(req: NextRequest) {
         text = update.message.text || update.message.caption || '';
       }
     } else if (update.callback_query) {
-      telegramId = update.callback_query.message.chat.id;
+      telegramId = update.callback_query.message?.chat?.id || update.callback_query.from?.id || null;
       username = update.callback_query.from?.username || '';
       firstName = update.callback_query.from?.first_name || '';
       lastName = update.callback_query.from?.last_name || '';
       text = update.callback_query.data || '';
 
       // Immediately edit and remove inline buttons from the clicked message
-      if (update.callback_query.message?.message_id && process.env.TELEGRAM_BOT_TOKEN) {
+      if (update.callback_query.message?.message_id && process.env.TELEGRAM_BOT_TOKEN && telegramId) {
         const msgId = update.callback_query.message.message_id;
         const botToken = process.env.TELEGRAM_BOT_TOKEN;
         waitUntil(
