@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const { org_id, cover_letter } = body;
+    const { org_id, cover_letter, status: requestedStatus } = body;
     const user_id = auth.session.role === 'volunteer' ? auth.session.userId : body.user_id;
 
     if (!org_id || !user_id) {
@@ -76,15 +76,47 @@ export async function POST(req: NextRequest) {
     );
 
     if (existing) {
-      return NextResponse.json({ error: 'Membership request already exists' }, { status: 400 });
+      if (existing.status === 'approved') {
+        return NextResponse.json({ error: 'Волонтер уже прикреплен к этой организации' }, { status: 400 });
+      }
+      // Update status if admin/manager is approving
+      if (['admin', 'manager'].includes(auth.session.role)) {
+        const updated = await db.updateOrganizationMembership(existing.id, 'approved');
+        return NextResponse.json(updated, { status: 200 });
+      }
+      return NextResponse.json({ error: 'Заявка волонтера уже подана и ожидает решения' }, { status: 400 });
     }
+
+    const initialStatus = (['admin', 'manager'].includes(auth.session.role) && requestedStatus === 'approved') 
+      ? 'approved' 
+      : 'pending';
 
     const newMemb = await db.createOrganizationMembership({
       org_id,
       user_id,
-      status: 'pending',
-      cover_letter: cover_letter || ''
+      status: initialStatus,
+      cover_letter: cover_letter || (initialStatus === 'approved' ? 'Назначен Руководителем / Координатором' : '')
     });
+
+    // If approved, create chat for organization-to-volunteer
+    if (newMemb.status === 'approved') {
+      const orgs = await db.getOrganizations();
+      const org = orgs.find(o => o.id === newMemb.org_id);
+      const chats = await db.getChats();
+      
+      const chatExists = chats.some(
+        c => c.type === 'organization' && c.volunteer_id === newMemb.user_id && c.target_org_id === newMemb.org_id
+      );
+
+      if (!chatExists && org) {
+        await db.createChat({
+          type: 'organization',
+          title: org.name,
+          volunteer_id: newMemb.user_id,
+          target_org_id: newMemb.org_id
+        });
+      }
+    }
 
     return NextResponse.json(newMemb, { status: 201 });
   } catch (error) {
@@ -131,5 +163,25 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     console.error('Failed to update membership:', error);
     return NextResponse.json({ error: 'Failed to update membership' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const auth = requireSessionRequest(req, ['admin', 'manager']);
+    if ('response' in auth) return auth.response;
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Membership id is required' }, { status: 400 });
+    }
+
+    await db.deleteOrganizationMembership(id);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete membership:', error);
+    return NextResponse.json({ error: 'Failed to delete membership' }, { status: 500 });
   }
 }

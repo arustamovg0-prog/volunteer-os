@@ -1840,6 +1840,22 @@ class PrismaDBAdapter {
     );
   }
 
+  async deleteOrganizationMembership(id: string): Promise<boolean> {
+    return runQuery(
+      async () => {
+        await prisma.organizationMembership.delete({ where: { id } });
+        return true;
+      },
+      (data) => {
+        if (data.org_memberships) {
+          data.org_memberships = data.org_memberships.filter((m: any) => m.id !== id);
+          saveFallbackData(data);
+        }
+        return true;
+      }
+    );
+  }
+
   // Resources (Inventory)
   async getResources(): Promise<ResourceItem[]> {
     return runQuery(

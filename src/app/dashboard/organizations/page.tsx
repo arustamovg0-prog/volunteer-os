@@ -144,6 +144,12 @@ export default function ManagerOrganizationsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
+  // Volunteer Search & Assignment State
+  const [allVolunteers, setAllVolunteers] = useState<User[]>([]);
+  const [volunteerSearchTerm, setVolunteerSearchTerm] = useState('');
+  const [selectedVolunteerToAssign, setSelectedVolunteerToAssign] = useState<User | null>(null);
+  const [isAssigningVolunteer, setIsAssigningVolunteer] = useState(false);
+
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole');
     if (savedRole) setRole(savedRole);
@@ -161,13 +167,14 @@ export default function ManagerOrganizationsPage() {
 
   async function fetchData() {
     try {
-      const [orgsRes, newsRes, membRes, tasksRes, checkinsRes, projectsRes] = await Promise.all([
+      const [orgsRes, newsRes, membRes, tasksRes, checkinsRes, projectsRes, usersRes] = await Promise.all([
         fetch('/api/organizations'),
         fetch('/api/organizations/news'),
         fetch('/api/organizations/memberships'),
         fetch('/api/tasks'),
         fetch('/api/checkins'),
-        fetch('/api/projects')
+        fetch('/api/projects'),
+        fetch('/api/users')
       ]);
 
       setOrganizations(await orgsRes.json());
@@ -176,12 +183,66 @@ export default function ManagerOrganizationsPage() {
       setTasks(await tasksRes.json());
       setCheckins((await checkinsRes.json()).checkins || []);
       setProjects(await projectsRes.json());
+      
+      const usersData: User[] = await usersRes.json();
+      setAllVolunteers(usersData.filter(u => u.role === 'volunteer'));
     } catch (e) {
       console.error('Failed to fetch data for manager organizations page:', e);
     } finally {
       setLoading(false);
     }
   }
+
+  const handleAssignVolunteerToOrg = async (orgId: string, volunteerId: string) => {
+    if (!volunteerId) return;
+    setIsAssigningVolunteer(true);
+    try {
+      const res = await fetch('/api/organizations/memberships', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          org_id: orgId,
+          user_id: volunteerId,
+          status: 'approved',
+          cover_letter: 'Назначен Руководителем / Координатором'
+        })
+      });
+
+      if (res.ok) {
+        setAlertMessage('🎉 Волонтер успешно назначен в организацию!');
+        setTimeout(() => setAlertMessage(null), 3000);
+        setSelectedVolunteerToAssign(null);
+        setVolunteerSearchTerm('');
+        fetchData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Ошибка при назначении волонтера');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при назначении волонтера');
+    } finally {
+      setIsAssigningVolunteer(false);
+    }
+  };
+
+  const handleUnassignVolunteerFromOrg = async (membershipId: string) => {
+    if (!confirm('Вы уверены, что хотите отвязать волонтера от этой организации?')) return;
+    try {
+      const res = await fetch(`/api/organizations/memberships?id=${membershipId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setAlertMessage('Волонтер отвязан от организации');
+        setTimeout(() => setAlertMessage(null), 3000);
+        fetchData();
+      } else {
+        alert('Ошибка при отвязке волонтера');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Action handlers
   const handleCreateOrg = async (e: React.FormEvent) => {
@@ -1033,31 +1094,135 @@ export default function ManagerOrganizationsPage() {
                   </div>
                 )}
 
-                {/* 3. Members List */}
+                {/* 3. Members List & Assignment */}
                 {orgDetailTab === 'members' && (
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Список участников ({selectedOrgMembers.length})</span>
-                    {selectedOrgMembers.length === 0 ? (
-                      <p className="text-center py-6 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">Участников пока нет</p>
-                    ) : (
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-0.5">
-                        {selectedOrgMembers.map(memb => {
-                          const ratingVal = memb.user?.rating ?? 5.0;
-                          return (
-                            <div key={memb.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-sm">
-                              <div>
-                                <span className="font-bold text-slate-950 block">{memb.user?.full_name || 'Имя не указано'}</span>
-                                <span className="text-[9px] text-slate-400 block mt-0.5">Присоединен: {new Date(memb.created_at).toLocaleDateString('ru-RU')}</span>
-                              </div>
-                              <span className="inline-flex items-center gap-0.5 px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-150 font-bold text-[10px]">
-                                <Award className="w-3.5 h-3.5" />
-                                {ratingVal.toFixed(2)}
-                              </span>
-                            </div>
-                          );
-                        })}
+                  <div className="space-y-4">
+                    {/* Add / Assign Volunteer Section */}
+                    <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                          <UserCheck className="w-3.5 h-3.5 text-slate-900" />
+                          Назначить постоянного волонтера
+                        </span>
+                        <span className="text-[9px] text-slate-400">Поиск по ФИО или Номеру</span>
                       </div>
-                    )}
+
+                      {/* Autocomplete / Search input */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Введите ФИО или телефон волонтера..."
+                          value={volunteerSearchTerm}
+                          onChange={(e) => {
+                            setVolunteerSearchTerm(e.target.value);
+                            setSelectedVolunteerToAssign(null);
+                          }}
+                          className="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                        />
+
+                        {/* Live Filtered Search Suggestions */}
+                        {volunteerSearchTerm.trim().length > 0 && !selectedVolunteerToAssign && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50 divide-y divide-slate-100">
+                            {allVolunteers
+                              .filter(v => 
+                                !selectedOrgMembers.some(m => m.user_id === v.id) &&
+                                (v.full_name.toLowerCase().includes(volunteerSearchTerm.toLowerCase()) || 
+                                 (v.phone && v.phone.includes(volunteerSearchTerm)))
+                              )
+                              .map(vol => (
+                                <button
+                                  key={vol.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedVolunteerToAssign(vol);
+                                    setVolunteerSearchTerm(`${vol.full_name} (${vol.phone || 'без тел.'})`);
+                                  }}
+                                  className="w-full p-2.5 text-left hover:bg-slate-50 flex items-center justify-between text-xs transition-colors"
+                                >
+                                  <div>
+                                    <span className="font-bold text-slate-900 block">{vol.full_name}</span>
+                                    <span className="text-[9px] text-slate-400 block">{vol.phone || 'Телефон не указан'}</span>
+                                  </div>
+                                  <span className="text-[9px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                                    ★ {vol.rating.toFixed(2)}
+                                  </span>
+                                </button>
+                              ))}
+
+                            {allVolunteers.filter(v => 
+                              !selectedOrgMembers.some(m => m.user_id === v.id) &&
+                              (v.full_name.toLowerCase().includes(volunteerSearchTerm.toLowerCase()) || 
+                               (v.phone && v.phone.includes(volunteerSearchTerm)))
+                            ).length === 0 && (
+                              <div className="p-3 text-center text-slate-400 text-xs italic">
+                                Волонтеры не найдены или уже прикреплены.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Selected volunteer preview & confirm button */}
+                      {selectedVolunteerToAssign && (
+                        <div className="p-2.5 rounded-lg bg-white border border-emerald-200 flex items-center justify-between animate-fade-in">
+                          <div className="min-w-0 pr-2">
+                            <span className="text-[9px] font-bold text-emerald-600 uppercase block">Выбран для назначения:</span>
+                            <span className="font-bold text-slate-900 text-xs block truncate">{selectedVolunteerToAssign.full_name}</span>
+                            <span className="text-[9px] text-slate-500">{selectedVolunteerToAssign.phone || 'без телефона'}</span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={isAssigningVolunteer}
+                            onClick={() => handleAssignVolunteerToOrg(selectedOrgDetail.id, selectedVolunteerToAssign.id)}
+                            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition-all shrink-0"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            {isAssigningVolunteer ? 'Назначение...' : 'Назначить'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Members List */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Прикрепленные участники ({selectedOrgMembers.length})</span>
+                      {selectedOrgMembers.length === 0 ? (
+                        <p className="text-center py-6 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">Участников пока нет</p>
+                      ) : (
+                        <div className="space-y-2 max-h-[250px] overflow-y-auto pr-0.5">
+                          {selectedOrgMembers.map(memb => {
+                            const ratingVal = memb.user?.rating ?? 5.0;
+                            return (
+                              <div key={memb.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-sm">
+                                <div>
+                                  <span className="font-bold text-slate-950 block">{memb.user?.full_name || 'Имя не указано'}</span>
+                                  <span className="text-[9px] text-slate-500 block">{memb.user?.phone || 'Телефон не указан'}</span>
+                                  <span className="text-[8px] text-slate-400 block mt-0.5">В организации с: {new Date(memb.created_at).toLocaleDateString('ru-RU')}</span>
+                                </div>
+                                
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-150 font-bold text-[10px]">
+                                    <Award className="w-3 h-3" />
+                                    {ratingVal.toFixed(2)}
+                                  </span>
+
+                                  {['admin', 'manager'].includes(role) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUnassignVolunteerFromOrg(memb.id)}
+                                      className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                      title="Отвязать волонтера от организации"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
