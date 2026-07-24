@@ -529,14 +529,10 @@ export async function handleBotUpdate(
           }
         });
         
-        if (proj && proj.latitude && proj.longitude) {
-          if (!activeCheckIn) {
-            keyboard.push([{ text: `📍 Начать смену: ${task.title.slice(0, 15)}...`, callback_data: `checkin_${task.id}` }]);
-          } else {
-            keyboard.push([{ text: `🏁 Завершить смену: ${task.title.slice(0, 15)}...`, callback_data: `checkout_${task.id}` }]);
-          }
+        if (!activeCheckIn) {
+          keyboard.push([{ text: `📍 Начать смену: ${task.title.slice(0, 15)}...`, callback_data: `checkin_${task.id}` }]);
         } else {
-          keyboard.push([{ text: `✍️ Сдать отчет: ${task.title.slice(0, 15)}...`, callback_data: `report_${task.id}` }]);
+          keyboard.push([{ text: `🏁 Завершить смену: ${task.title.slice(0, 15)}...`, callback_data: `checkout_${task.id}` }]);
         }
       }
     }
