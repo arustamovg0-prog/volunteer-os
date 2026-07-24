@@ -599,12 +599,16 @@ export async function handleBotUpdate(
       });
 
       const newStatus = isYes ? 'accepted' : 'rejected';
-      const deadlineDate = project.start_date ? new Date(project.start_date) : new Date();
+      const deadlineDate = project.end_date
+        ? new Date(project.end_date)
+        : project.start_date
+        ? new Date(new Date(project.start_date).getTime() + 7 * 24 * 3600 * 1000)
+        : new Date(Date.now() + 7 * 24 * 3600 * 1000);
 
       if (existingTask) {
         await prisma.task.update({
           where: { id: existingTask.id },
-          data: { status: newStatus }
+          data: { status: newStatus, deadline: deadlineDate, isOverdue: false }
         });
       } else {
         await prisma.task.create({
@@ -648,12 +652,18 @@ export async function handleBotUpdate(
       });
 
       if (!task) {
+        const taskDeadline = project.end_date
+          ? new Date(project.end_date)
+          : project.start_date
+          ? new Date(new Date(project.start_date).getTime() + 7 * 24 * 3600 * 1000)
+          : new Date(Date.now() + 7 * 24 * 3600 * 1000);
+
         task = await prisma.task.create({
           data: {
             projectId,
             assignedTo: user.id,
             title: `Смена: ${user.full_name || 'Волонтер'}`,
-            deadline: project.start_date ? new Date(project.start_date) : new Date(),
+            deadline: taskDeadline,
             status: 'accepted'
           }
         });

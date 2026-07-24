@@ -152,6 +152,9 @@ export default function DashboardPage() {
   const overdueTasks = tasks.filter(task => {
     if (task.status === 'completed') return false;
     const deadline = new Date(task.deadline);
+    if (task.title.startsWith('RSVP:')) {
+      return task.is_overdue && deadline < now;
+    }
     return task.is_overdue || deadline < now;
   });
 
