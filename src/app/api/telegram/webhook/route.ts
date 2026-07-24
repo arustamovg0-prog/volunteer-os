@@ -106,7 +106,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Process update through the state-machine
-    const response = await handleBotUpdate(telegramId, text, username, phone, firstName, lastName);
+    let response;
+    try {
+      response = await handleBotUpdate(telegramId, text, username, phone, firstName, lastName);
+    } catch (botErr) {
+      console.error('handleBotUpdate error:', botErr);
+      response = { text: '👋 Добро пожаловать! Отправьте /start для начала работы.' };
+    }
 
     // Save bot response to simulator history (in background)
     waitUntil(
@@ -182,7 +188,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Webhook processing error:', error);
-    return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 });
+    return NextResponse.json({ ok: true });
   }
 }
 
