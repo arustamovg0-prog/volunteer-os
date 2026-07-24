@@ -361,6 +361,13 @@ export default function VolunteerDashboard() {
   const getDeadlineState = (task: Task) => {
     if (task.status === 'completed') return 'normal';
     const now = new Date();
+    if (task.title.startsWith('RSVP:')) {
+      const project = projects.find(p => p.id === task.project_id);
+      if (project && project.end_date) {
+        if (now > new Date(project.end_date)) return 'overdue';
+      }
+      return 'normal';
+    }
     const deadline = new Date(task.deadline);
     const diffTime = deadline.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
