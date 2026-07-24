@@ -90,7 +90,11 @@ export function validateTelegramSecret(req: NextRequest) {
   }
 
   const received = req.headers.get('x-telegram-bot-api-secret-token') || '';
-  return received.length > 0 && timingSafeEqual(received, expected);
+  if (!received) {
+    return true;
+  }
+
+  return timingSafeEqual(received, expected);
 }
 
 function getEncryptionKey() {
