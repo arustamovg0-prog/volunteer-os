@@ -993,47 +993,77 @@ export default function ManagerOrganizationsPage() {
                 </button>
               </div>
 
-              {/* Drawer Tabs Bar - Fixed Spacing & Gap */}
-              <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar pt-2 text-xs font-bold">
+              {/* Drawer Tabs Bar - Highlighted Pill Tabs with Gaps */}
+              <div className="flex items-center gap-2 border-b border-slate-200/80 overflow-x-auto no-scrollbar pt-2 pb-1 text-xs font-bold shrink-0">
                 <button
+                  type="button"
                   onClick={() => setOrgDetailTab('info')}
-                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer ${
-                    orgDetailTab === 'info' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    orgDetailTab === 'info'
+                      ? 'bg-slate-900 text-white shadow-xs font-black'
+                      : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80 border border-slate-200/60'
                   }`}
                 >
                   Описание и цели
                 </button>
                 <button
+                  type="button"
                   onClick={() => setOrgDetailTab('structure')}
-                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer ${
-                    orgDetailTab === 'structure' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                    orgDetailTab === 'structure'
+                      ? 'bg-slate-900 text-white shadow-xs font-black'
+                      : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80 border border-slate-200/60'
                   }`}
                 >
                   Оргструктура
                 </button>
                 <button
+                  type="button"
                   onClick={() => setOrgDetailTab('members')}
-                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    orgDetailTab === 'members' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    orgDetailTab === 'members'
+                      ? 'bg-slate-900 text-white shadow-xs font-black'
+                      : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80 border border-slate-200/60'
                   }`}
                 >
-                  Участники <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-[10px]">{selectedOrgMembers.length}</span>
+                  Участники
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    orgDetailTab === 'members' ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {selectedOrgMembers.length}
+                  </span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setOrgDetailTab('news')}
-                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    orgDetailTab === 'news' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    orgDetailTab === 'news'
+                      ? 'bg-slate-900 text-white shadow-xs font-black'
+                      : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80 border border-slate-200/60'
                   }`}
                 >
-                  Новости <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-[10px]">{selectedOrgNews.length}</span>
+                  Новости
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    orgDetailTab === 'news' ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {selectedOrgNews.length}
+                  </span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setOrgDetailTab('projects')}
-                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    orgDetailTab === 'projects' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
+                  className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    orgDetailTab === 'projects'
+                      ? 'bg-slate-900 text-white shadow-xs font-black'
+                      : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80 border border-slate-200/60'
                   }`}
                 >
-                  Проекты <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-[10px]">{selectedOrgProjects.length}</span>
+                  Проекты
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    orgDetailTab === 'projects' ? 'bg-slate-800 text-slate-200' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {selectedOrgProjects.length}
+                  </span>
                 </button>
               </div>
             </div>

@@ -480,46 +480,76 @@ export default function VolunteerOrganizationsPage() {
             </div>
 
             {/* Modal Tabs Scrollable */}
-            <div className="flex border-b border-slate-100 overflow-x-auto no-scrollbar px-4 bg-white text-[10px] uppercase font-bold tracking-wider">
+            <div className="flex items-center gap-2 border-b border-slate-200/80 overflow-x-auto no-scrollbar px-4 py-2.5 bg-slate-50/70 shrink-0">
               <button
+                type="button"
                 onClick={() => setDetailTab('info')}
-                className={`py-2.5 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-                  detailTab === 'info' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  detailTab === 'info'
+                    ? 'bg-slate-900 text-white shadow-xs font-black'
+                    : 'bg-white text-slate-600 hover:bg-slate-150 border border-slate-200'
                 }`}
               >
                 Описание и цели
               </button>
               <button
+                type="button"
                 onClick={() => setDetailTab('structure')}
-                className={`py-2.5 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-                  detailTab === 'structure' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  detailTab === 'structure'
+                    ? 'bg-slate-900 text-white shadow-xs font-black'
+                    : 'bg-white text-slate-600 hover:bg-slate-150 border border-slate-200'
                 }`}
               >
                 Оргструктура
               </button>
               <button
+                type="button"
                 onClick={() => setDetailTab('members')}
-                className={`py-2.5 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer flex items-center gap-1 ${
-                  detailTab === 'members' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  detailTab === 'members'
+                    ? 'bg-slate-900 text-white shadow-xs font-black'
+                    : 'bg-white text-slate-600 hover:bg-slate-150 border border-slate-200'
                 }`}
               >
-                Участники ({loadingMembers ? '...' : orgMembers.length})
+                Участники
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  detailTab === 'members' ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {loadingMembers ? '...' : orgMembers.length}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => setDetailTab('news')}
-                className={`py-2.5 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer flex items-center gap-1 ${
-                  detailTab === 'news' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  detailTab === 'news'
+                    ? 'bg-slate-900 text-white shadow-xs font-black'
+                    : 'bg-white text-slate-600 hover:bg-slate-150 border border-slate-200'
                 }`}
               >
-                Новости ({selectedOrgNews.length})
+                Новости
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  detailTab === 'news' ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {selectedOrgNews.length}
+                </span>
               </button>
               <button
+                type="button"
                 onClick={() => setDetailTab('projects')}
-                className={`py-2.5 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer flex items-center gap-1 ${
-                  detailTab === 'projects' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  detailTab === 'projects'
+                    ? 'bg-slate-900 text-white shadow-xs font-black'
+                    : 'bg-white text-slate-600 hover:bg-slate-150 border border-slate-200'
                 }`}
               >
-                Проекты ({selectedOrgProjects.length})
+                Проекты
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  detailTab === 'projects' ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {selectedOrgProjects.length}
+                </span>
               </button>
             </div>
 
