@@ -325,11 +325,11 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
           const IconComponent = statusIcon;
 
           return (
-            <div key={proj.id} className="glass-panel p-6 bg-white flex flex-col justify-between h-[250px] hover:border-slate-350 transition-all shadow-sm">
+            <div key={proj.id} className="glass-panel p-6 bg-white flex flex-col justify-between min-h-[270px] h-full hover:border-slate-350 transition-all shadow-sm rounded-2xl">
               <div>
                 {/* Header elements */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1 shrink-0">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     {proj.start_date ? new Date(proj.start_date).toLocaleDateString('ru-RU') : 'Начало не задано'}
                   </span>
@@ -338,7 +338,7 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
                     <select
                       value={proj.status}
                       onChange={(e) => handleUpdateProjectStatus(proj.id, e.target.value as any)}
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold border cursor-pointer outline-none transition-all ${statusColors[proj.status]}`}
+                      className={`px-3 py-1 rounded-full text-xs font-bold border cursor-pointer outline-none transition-all ${statusColors[proj.status]}`}
                       title="Нажмите, чтобы изменить статус проекта"
                     >
                       <option value="active">🔵 Активен</option>
@@ -346,8 +346,8 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
                       <option value="completed">✅ Завершен</option>
                     </select>
                   ) : (
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border flex items-center gap-1 ${statusColors[proj.status]}`}>
-                      <IconComponent className="w-3 h-3" />
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${statusColors[proj.status]}`}>
+                      <IconComponent className="w-3.5 h-3.5" />
                       {statusText[proj.status]}
                     </span>
                   )}
@@ -361,10 +361,10 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
               </div>
 
               {/* Progress and footer */}
-              <div className="space-y-4">
+              <div className="space-y-3 mt-4">
                 {/* Progress bar */}
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[9px] text-slate-400">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
                     <span className="font-medium">Выполнение задач</span>
                     <span className="font-bold text-slate-900">{completedTasks} / {projTasks.length} ({progressPercent}%)</span>
                   </div>
@@ -379,9 +379,9 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
                 </div>
 
                 {/* Card footer details */}
-                <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-slate-400">
+                <div className="flex flex-col gap-2 pt-2.5 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[10px] text-slate-400 font-medium">
                       Срок до: {proj.end_date ? new Date(proj.end_date).toLocaleDateString('ru-RU') : 'отсутствует'}
                     </span>
 
@@ -397,24 +397,24 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
                     })()}
                   </div>
                   
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 pt-1">
                     <button
                       onClick={() => openRsvpModal(proj)}
-                      className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95"
+                      className="shrink-0 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all whitespace-nowrap active:scale-95 shadow-2xs"
                       title="Настройка и отправка рассылки волонтерам"
                     >
-                      <Megaphone className="w-3 h-3 text-amber-600" />
-                      Пригласить (RSVP)
+                      <Megaphone className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Пригласить (RSVP)</span>
                     </button>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       {role === 'admin' && (
                         <button
                           onClick={() => {
                             setAssigningProjectId(proj.id);
                             setSelectedCoordinatorId(proj.coordinator_id || '');
                           }}
-                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 group"
+                          className="text-xs text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 shrink-0 whitespace-nowrap"
                           title="Назначить координатора"
                         >
                           <UserCheck className="w-3.5 h-3.5" />
@@ -425,10 +425,9 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
                       )}
                       <Link 
                         href={`/dashboard/projects/${proj.id}`}
-                        className="text-[10px] text-slate-900 hover:underline font-bold flex items-center gap-0.5 group"
+                        className="text-xs font-bold text-slate-700 hover:text-slate-950 flex items-center gap-0.5 shrink-0 whitespace-nowrap hover:underline"
                       >
-                        Доска
-                        <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 text-slate-900" />
+                        Доска &rsaquo;
                       </Link>
                     </div>
                   </div>

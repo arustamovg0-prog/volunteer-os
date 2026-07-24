@@ -960,20 +960,20 @@ export default function ManagerOrganizationsPage() {
 
       {/* Slide-over Drawer: Detailed Organization Profile for Managers */}
       {selectedOrgDetail && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white border-l border-slate-200 h-full p-6 shadow-xl flex flex-col justify-between overflow-y-auto animate-fade-in">
-            <div className="space-y-6">
-              {/* Drawer Header */}
-              <div className="flex items-start justify-between border-b border-slate-100 pb-4 bg-slate-50/20 p-2 rounded-xl">
-                <div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="px-2 py-0.5 rounded-full text-[8px] font-bold border border-slate-250 bg-slate-50 text-slate-700">
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-xl bg-white border-l border-slate-200 h-full max-h-screen shadow-2xl flex flex-col justify-between overflow-hidden">
+            {/* Drawer Header */}
+            <div className="p-5 border-b border-slate-150 bg-slate-50/80 shrink-0 space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1.5 pr-6">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-slate-250 bg-white text-slate-700 shadow-2xs">
                       {selectedOrgDetail.category}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-slate-900 text-white shadow-sm">
+                    <span className="px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white shadow-xs">
                       KPI: {orgKpiScore.toFixed(1)}%
                     </span>
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${
+                    <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
                       orgKpiGrade === 'A' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                       orgKpiGrade === 'B' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                       orgKpiGrade === 'C' ? 'bg-amber-50 text-amber-700 border-amber-200' :
@@ -982,310 +982,241 @@ export default function ManagerOrganizationsPage() {
                       Класс {orgKpiGrade}
                     </span>
                   </div>
-                  <h3 className="text-md font-bold text-slate-900 mt-1.5">{selectedOrgDetail.name}</h3>
-                  <p className="text-[10px] text-slate-400 font-medium">Создана: {new Date(selectedOrgDetail.created_at).toLocaleDateString('ru-RU')}</p>
+                  <h3 className="text-lg font-bold text-slate-900 leading-tight">{selectedOrgDetail.name}</h3>
+                  <p className="text-xs text-slate-500 font-medium">Создана: {new Date(selectedOrgDetail.created_at).toLocaleDateString('ru-RU')}</p>
                 </div>
                 <button 
                   onClick={() => setSelectedOrgDetail(null)}
-                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-lg hover:bg-slate-200/60 text-slate-400 hover:text-slate-900 transition-colors cursor-pointer shrink-0"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Drawer Tabs */}
-              <div className="flex border-b border-slate-100 overflow-x-auto no-scrollbar text-[10px] uppercase font-bold tracking-wider">
+              {/* Drawer Tabs Bar - Fixed Spacing & Gap */}
+              <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar pt-2 text-xs font-bold">
                 <button
                   onClick={() => setOrgDetailTab('info')}
-                  className={`py-2 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-                    orgDetailTab === 'info' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer ${
+                    orgDetailTab === 'info' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   Описание и цели
                 </button>
                 <button
                   onClick={() => setOrgDetailTab('structure')}
-                  className={`py-2 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer ${
-                    orgDetailTab === 'structure' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer ${
+                    orgDetailTab === 'structure' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   Оргструктура
                 </button>
                 <button
                   onClick={() => setOrgDetailTab('members')}
-                  className={`py-2 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer flex items-center gap-1 ${
-                    orgDetailTab === 'members' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    orgDetailTab === 'members' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Участники ({selectedOrgMembers.length})
+                  Участники <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-[10px]">{selectedOrgMembers.length}</span>
                 </button>
                 <button
                   onClick={() => setOrgDetailTab('news')}
-                  className={`py-2 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer flex items-center gap-1 ${
-                    orgDetailTab === 'news' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    orgDetailTab === 'news' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Новости ({selectedOrgNews.length})
+                  Новости <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-[10px]">{selectedOrgNews.length}</span>
                 </button>
                 <button
                   onClick={() => setOrgDetailTab('projects')}
-                  className={`py-2 px-3 whitespace-nowrap border-b-2 transition-all cursor-pointer flex items-center gap-1 ${
-                    orgDetailTab === 'projects' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400'
+                  className={`shrink-0 px-3.5 py-2 rounded-t-lg transition-all border-b-2 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    orgDetailTab === 'projects' ? 'border-slate-900 text-slate-900 bg-white shadow-2xs font-extrabold' : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Проекты ({selectedOrgProjects.length})
+                  Проекты <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-[10px]">{selectedOrgProjects.length}</span>
                 </button>
               </div>
+            </div>
 
-              {/* Drawer tab content */}
-              <div className="space-y-4">
-                {/* 1. Info & Goals */}
-                {orgDetailTab === 'info' && (
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Описание деятельности</h4>
-                      <p className="text-xs text-slate-650 leading-relaxed bg-slate-55 p-3.5 rounded-xl border border-slate-150">
-                        {selectedOrgDetail.description}
-                      </p>
+            {/* Scrollable Drawer Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* 1. Info & Goals */}
+              {orgDetailTab === 'info' && (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Описание деятельности</h4>
+                    <p className="text-xs text-slate-650 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-150">
+                      {selectedOrgDetail.description}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Target className="w-3.5 h-3.5 text-blue-500" />
+                      Цели организации
+                    </h4>
+                    <p className="text-xs text-slate-650 leading-relaxed bg-blue-50/10 p-4 rounded-xl border border-blue-150 whitespace-pre-line font-medium">
+                      {selectedOrgDetail.goals || 'Цели пока не сформулированы.'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Контакты и коммуникация</h4>
+                    <p className="text-xs text-slate-800 font-bold bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                      {selectedOrgDetail.contacts}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Structure */}
+              {orgDetailTab === 'structure' && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2.5">
+                    <div>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Ответственное лицо (Руководитель)</span>
+                      <span className="text-xs font-bold text-slate-900 block mt-0.5">{selectedOrgDetail.leader_name || 'Не назначен'}</span>
                     </div>
-
-                    <div className="space-y-1">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <Target className="w-3.5 h-3.5 text-blue-500" />
-                        Цели организации
-                      </h4>
-                      <p className="text-xs text-slate-650 leading-relaxed bg-blue-50/10 p-3.5 rounded-xl border border-blue-150 whitespace-pre-line font-medium">
-                        {selectedOrgDetail.goals || 'Цели пока не сформулированы.'}
-                      </p>
-                    </div>
-
-                    <div className="space-y-1">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Контакты и коммуникация</h4>
-                      <p className="text-xs text-slate-800 font-bold bg-slate-50 p-3 rounded-xl border border-slate-200">
-                        {selectedOrgDetail.contacts}
-                      </p>
+                    <div className="border-t border-slate-200/50 pt-2 mt-1">
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Контакты руководителя</span>
+                      <span className="text-xs text-slate-650 block mt-0.5">{selectedOrgDetail.contacts}</span>
                     </div>
                   </div>
-                )}
 
-                {/* 2. Structure */}
-                {orgDetailTab === 'structure' && (
-                  <div className="space-y-4">
-                    <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                      <div>
-                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Ответственное лицо (Руководитель)</span>
-                        <span className="text-xs font-bold text-slate-900 block mt-0.5">{selectedOrgDetail.leader_name || 'Не назначен'}</span>
-                      </div>
-                      <div className="border-t border-slate-200/50 pt-2 mt-1">
-                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Контакты руководителя</span>
-                        <span className="text-xs text-slate-650 block mt-0.5">{selectedOrgDetail.contacts}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                        <Network className="w-3.5 h-3.5 text-blue-500" />
-                        Организационная структура
-                      </h4>
-                      <p className="text-xs text-slate-650 leading-relaxed bg-white p-3.5 rounded-xl border border-slate-200 whitespace-pre-line font-medium shadow-sm">
-                        {selectedOrgDetail.org_structure || 'Схема оргструктуры не добавлена.'}
-                      </p>
-                    </div>
+                  <div className="space-y-1.5">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <Network className="w-3.5 h-3.5 text-blue-500" />
+                      Организационная структура
+                    </h4>
+                    <p className="text-xs text-slate-650 leading-relaxed bg-white p-4 rounded-xl border border-slate-200 whitespace-pre-line font-medium shadow-sm">
+                      {selectedOrgDetail.org_structure || 'Схема оргструктуры не добавлена.'}
+                    </p>
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* 3. Members List & Assignment */}
-                {orgDetailTab === 'members' && (
-                  <div className="space-y-4">
-                    {/* Add / Assign Volunteer Section */}
-                    <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3 shadow-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">
-                          <UserCheck className="w-3.5 h-3.5 text-slate-900" />
-                          Назначить постоянного волонтера
-                        </span>
-                        <span className="text-[9px] text-slate-400">Поиск по ФИО или Номеру</span>
-                      </div>
+              {/* 3. Members List & Assignment */}
+              {orgDetailTab === 'members' && (
+                <div className="space-y-4">
+                  {/* Add / Assign Volunteer Section */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                        <UserCheck className="w-3.5 h-3.5 text-slate-900" />
+                        Назначить постоянного волонтера
+                      </span>
+                      <span className="text-[9px] text-slate-400">Поиск по ФИО или Номеру</span>
+                    </div>
 
-                      {/* Autocomplete / Search input */}
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Введите ФИО или телефон волонтера..."
-                          value={volunteerSearchTerm}
-                          onChange={(e) => {
-                            setVolunteerSearchTerm(e.target.value);
-                            setSelectedVolunteerToAssign(null);
-                          }}
-                          className="w-full px-3 py-2 border border-slate-200 bg-white text-slate-900 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
-                        />
+                    {/* Autocomplete / Search input */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Введите ФИО или телефон волонтера..."
+                        value={volunteerSearchTerm}
+                        onChange={(e) => {
+                          setVolunteerSearchTerm(e.target.value);
+                          setSelectedVolunteerToAssign(null);
+                        }}
+                        className="w-full px-3.5 py-2.5 border border-slate-200 bg-white text-slate-900 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                      />
 
-                        {/* Live Filtered Search Suggestions */}
-                        {volunteerSearchTerm.trim().length > 0 && !selectedVolunteerToAssign && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50 divide-y divide-slate-100">
-                            {allVolunteers
-                              .filter(v => 
-                                !selectedOrgMembers.some(m => m.user_id === v.id) &&
-                                (v.full_name.toLowerCase().includes(volunteerSearchTerm.toLowerCase()) || 
-                                 (v.phone && v.phone.includes(volunteerSearchTerm)))
-                              )
-                              .map(vol => (
-                                <button
-                                  key={vol.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedVolunteerToAssign(vol);
-                                    setVolunteerSearchTerm(`${vol.full_name} (${vol.phone || 'без тел.'})`);
-                                  }}
-                                  className="w-full p-2.5 text-left hover:bg-slate-50 flex items-center justify-between text-xs transition-colors"
-                                >
-                                  <div>
-                                    <span className="font-bold text-slate-900 block">{vol.full_name}</span>
-                                    <span className="text-[9px] text-slate-400 block">{vol.phone || 'Телефон не указан'}</span>
-                                  </div>
-                                  <span className="text-[9px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                                    ★ {vol.rating.toFixed(2)}
-                                  </span>
-                                </button>
-                              ))}
-
-                            {allVolunteers.filter(v => 
+                      {/* Live Filtered Search Suggestions */}
+                      {volunteerSearchTerm.trim().length > 0 && !selectedVolunteerToAssign && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50 divide-y divide-slate-100">
+                          {allVolunteers
+                            .filter(v => 
                               !selectedOrgMembers.some(m => m.user_id === v.id) &&
                               (v.full_name.toLowerCase().includes(volunteerSearchTerm.toLowerCase()) || 
                                (v.phone && v.phone.includes(volunteerSearchTerm)))
-                            ).length === 0 && (
-                              <div className="p-3 text-center text-slate-400 text-xs italic">
-                                Волонтеры не найдены или уже прикреплены.
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Selected volunteer preview & confirm button */}
-                      {selectedVolunteerToAssign && (
-                        <div className="p-2.5 rounded-lg bg-white border border-emerald-200 flex items-center justify-between animate-fade-in">
-                          <div className="min-w-0 pr-2">
-                            <span className="text-[9px] font-bold text-emerald-600 uppercase block">Выбран для назначения:</span>
-                            <span className="font-bold text-slate-900 text-xs block truncate">{selectedVolunteerToAssign.full_name}</span>
-                            <span className="text-[9px] text-slate-500">{selectedVolunteerToAssign.phone || 'без телефона'}</span>
-                          </div>
-                          <button
-                            type="button"
-                            disabled={isAssigningVolunteer}
-                            onClick={() => handleAssignVolunteerToOrg(selectedOrgDetail.id, selectedVolunteerToAssign.id)}
-                            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition-all shrink-0"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            {isAssigningVolunteer ? 'Назначение...' : 'Назначить'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Members List */}
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Прикрепленные участники ({selectedOrgMembers.length})</span>
-                      {selectedOrgMembers.length === 0 ? (
-                        <p className="text-center py-6 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">Участников пока нет</p>
-                      ) : (
-                        <div className="space-y-2 max-h-[250px] overflow-y-auto pr-0.5">
-                          {selectedOrgMembers.map(memb => {
-                            const ratingVal = memb.user?.rating ?? 5.0;
-                            return (
-                              <div key={memb.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-sm">
+                            )
+                            .map(vol => (
+                              <button
+                                key={vol.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedVolunteerToAssign(vol);
+                                  setVolunteerSearchTerm(`${vol.full_name} (${vol.phone || 'без тел.'})`);
+                                }}
+                                className="w-full p-2.5 text-left hover:bg-slate-50 flex items-center justify-between text-xs transition-colors"
+                              >
                                 <div>
-                                  <span className="font-bold text-slate-950 block">{memb.user?.full_name || 'Имя не указано'}</span>
-                                  <span className="text-[9px] text-slate-500 block">{memb.user?.phone || 'Телефон не указан'}</span>
-                                  <span className="text-[8px] text-slate-400 block mt-0.5">В организации с: {new Date(memb.created_at).toLocaleDateString('ru-RU')}</span>
+                                  <span className="font-bold text-slate-900 block">{vol.full_name}</span>
+                                  <span className="text-[9px] text-slate-400 block">{vol.phone || 'Телефон не указан'}</span>
                                 </div>
-                                
-                                <div className="flex items-center gap-2">
-                                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-150 font-bold text-[10px]">
-                                    <Award className="w-3 h-3" />
-                                    {ratingVal.toFixed(2)}
-                                  </span>
+                                <span className="text-[9px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                                  ★ {vol.rating.toFixed(2)}
+                                </span>
+                              </button>
+                            ))}
 
-                                  {['admin', 'manager'].includes(role) && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUnassignVolunteerFromOrg(memb.id)}
-                                      className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                      title="Отвязать волонтера от организации"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
+                          {allVolunteers.filter(v => 
+                            !selectedOrgMembers.some(m => m.user_id === v.id) &&
+                            (v.full_name.toLowerCase().includes(volunteerSearchTerm.toLowerCase()) || 
+                             (v.phone && v.phone.includes(volunteerSearchTerm)))
+                          ).length === 0 && (
+                            <div className="p-3 text-center text-slate-400 text-xs italic">
+                              Волонтеры не найдены или уже прикреплены.
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
 
-                {/* 4. News */}
-                {orgDetailTab === 'news' && (
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Новости организации ({selectedOrgNews.length})</span>
-                    {selectedOrgNews.length === 0 ? (
-                      <p className="text-center py-6 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">Нет новостей</p>
-                    ) : (
-                      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-0.5">
-                        {selectedOrgNews.map(item => (
-                          <div key={item.id} className="p-3.5 rounded-xl border border-slate-150 bg-slate-50/30 space-y-2 text-xs">
-                            <div className="flex justify-between items-center text-[9px] text-slate-400 font-semibold">
-                              <span>Новость</span>
-                              <span>{new Date(item.created_at).toLocaleDateString('ru-RU')}</span>
-                            </div>
-                            <h4 className="font-bold text-slate-900 leading-snug">{item.title}</h4>
-                            <p className="text-slate-650 leading-relaxed whitespace-pre-wrap">{item.content}</p>
-                          </div>
-                        ))}
+                    {/* Selected volunteer preview & confirm button */}
+                    {selectedVolunteerToAssign && (
+                      <div className="p-3 rounded-lg bg-white border border-emerald-200 flex items-center justify-between animate-fade-in">
+                        <div className="min-w-0 pr-2">
+                          <span className="text-[9px] font-bold text-emerald-600 uppercase block">Выбран для назначения:</span>
+                          <span className="font-bold text-slate-900 text-xs block truncate">{selectedVolunteerToAssign.full_name}</span>
+                          <span className="text-[9px] text-slate-500">{selectedVolunteerToAssign.phone || 'без телефона'}</span>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isAssigningVolunteer}
+                          onClick={() => handleAssignVolunteerToOrg(selectedOrgDetail.id, selectedVolunteerToAssign.id)}
+                          className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95 transition-all shrink-0"
+                        >
+                          <Plus className="w-4 h-4" />
+                          {isAssigningVolunteer ? 'Назначение...' : 'Назначить'}
+                        </button>
                       </div>
                     )}
                   </div>
-                )}
 
-                {/* 5. Projects & Tasks */}
-                {orgDetailTab === 'projects' && (
-                  <div className="space-y-4">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Проекты организации ({selectedOrgProjects.length})</span>
-                    {selectedOrgProjects.length === 0 ? (
-                      <p className="text-center py-6 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">Проектов нет</p>
+                  {/* Members List */}
+                  <div className="space-y-2.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Прикрепленные участники ({selectedOrgMembers.length})</span>
+                    {selectedOrgMembers.length === 0 ? (
+                      <p className="text-center py-6 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">Участников пока нет</p>
                     ) : (
-                      <div className="space-y-3 max-h-[300px] overflow-y-auto pr-0.5">
-                        {selectedOrgProjects.map(project => {
-                          const projTasks = tasks.filter(t => t.project_id === project.id);
-                          const completed = projTasks.filter(t => t.status === 'completed').length;
-                          const progress = projTasks.length > 0 ? Math.round((completed / projTasks.length) * 100) : 0;
-                          
-                          const badgeColor = {
-                            planning: 'bg-amber-50 text-amber-700 border-amber-100',
-                            active: 'bg-blue-50 text-blue-700 border-blue-100',
-                            completed: 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                          }[project.status];
-
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-0.5">
+                        {selectedOrgMembers.map(memb => {
+                          const ratingVal = memb.user?.rating ?? 5.0;
                           return (
-                            <div key={project.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-3 text-xs shadow-sm">
-                              <div className="flex justify-between items-center">
-                                <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold border ${badgeColor}`}>
-                                  {project.status === 'planning' ? 'Подготовка' : project.status === 'active' ? 'Активен' : 'Завершен'}
-                                </span>
+                            <div key={memb.id} className="p-3.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-sm">
+                              <div>
+                                <span className="font-bold text-slate-950 block">{memb.user?.full_name || 'Имя не указано'}</span>
+                                <span className="text-[10px] text-slate-500 block mt-0.5">{memb.user?.phone || 'Телефон не указан'}</span>
+                                <span className="text-[9px] text-slate-400 block mt-0.5">В организации с: {new Date(memb.created_at).toLocaleDateString('ru-RU')}</span>
                               </div>
-                              <h4 className="font-bold text-slate-900">{project.title}</h4>
-                              <p className="text-[10px] text-slate-550">{project.description}</p>
                               
-                              <div className="space-y-1 pt-1.5 border-t border-slate-100">
-                                <div className="flex justify-between items-center text-[9px] text-slate-400 font-semibold">
-                                  <span>Выполнено задач</span>
-                                  <span className="text-slate-900">{completed} / {projTasks.length} ({progress}%)</span>
-                                </div>
-                                <div className="w-full h-1 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
-                                  <div className="h-full bg-slate-900 rounded-full" style={{ width: `${progress}%` }} />
-                                </div>
+                              <div className="flex items-center gap-2">
+                                <span className="inline-flex items-center gap-0.5 px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-150 font-bold text-[10px]">
+                                  <Award className="w-3.5 h-3.5" />
+                                  {ratingVal.toFixed(2)}
+                                </span>
+
+                                {['admin', 'manager'].includes(role) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnassignVolunteerFromOrg(memb.id)}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                    title="Отвязать волонтера от организации"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
@@ -1293,14 +1224,91 @@ export default function ManagerOrganizationsPage() {
                       </div>
                     )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* 4. News */}
+              {orgDetailTab === 'news' && (
+                <div className="space-y-3">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Новости организации ({selectedOrgNews.length})</span>
+                  {selectedOrgNews.length === 0 ? (
+                    <p className="text-center py-6 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">Нет новостей</p>
+                  ) : (
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-0.5">
+                      {selectedOrgNews.map(item => (
+                        <div key={item.id} className="p-4 rounded-xl border border-slate-150 bg-slate-50/30 space-y-2 text-xs">
+                          <div className="flex justify-between items-center text-[9px] text-slate-400 font-semibold">
+                            <span>Новость</span>
+                            <span>{new Date(item.created_at).toLocaleDateString('ru-RU')}</span>
+                          </div>
+                          <h4 className="font-bold text-slate-900 leading-snug">{item.title}</h4>
+                          <p className="text-slate-650 leading-relaxed whitespace-pre-wrap">{item.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 5. Projects */}
+              {orgDetailTab === 'projects' && (
+                <div className="space-y-4">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Проекты организации ({selectedOrgProjects.length})</span>
+                  {selectedOrgProjects.length === 0 ? (
+                    <p className="text-center py-6 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">Проектов нет</p>
+                  ) : (
+                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-0.5">
+                      {selectedOrgProjects.map(project => {
+                        const projTasks = tasks.filter(t => t.project_id === project.id);
+                        const completed = projTasks.filter(t => t.status === 'completed').length;
+                        const progress = projTasks.length > 0 ? Math.round((completed / projTasks.length) * 100) : 0;
+                        
+                        const badgeColor = {
+                          planning: 'bg-amber-50 text-amber-700 border-amber-200',
+                          active: 'bg-blue-50 text-blue-700 border-blue-200',
+                          completed: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }[project.status];
+
+                        return (
+                          <div key={project.id} className="p-3.5 rounded-xl border border-slate-150 bg-white space-y-2 text-xs shadow-xs">
+                            <div className="flex items-center justify-between">
+                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold border ${badgeColor}`}>
+                                {project.status === 'planning' ? 'Подготовка' : project.status === 'active' ? 'Активен' : 'Завершен'}
+                              </span>
+                              {project.start_date && (
+                                <span className="text-[8px] text-slate-400 font-semibold flex items-center gap-0.5">
+                                  <Calendar className="w-3 h-3 text-slate-350" />
+                                  {new Date(project.start_date).toLocaleDateString('ru-RU')}
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="font-bold text-slate-900 leading-snug">{project.title}</h4>
+                            <p className="text-[10px] text-slate-500 leading-relaxed">{project.description}</p>
+
+                            <div className="space-y-1 pt-2 border-t border-slate-100">
+                              <div className="flex items-center justify-between text-[9px] text-slate-400 font-semibold">
+                                <span>Выполнение задач</span>
+                                <span className="text-slate-900">{completed} / {projTasks.length} ({progress}%)</span>
+                              </div>
+                              <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                <div className="h-full bg-slate-900 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="mt-8 border-t border-slate-150 pt-4">
+            {/* Sticky Drawer Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50/80 shrink-0">
               <button 
                 onClick={() => setSelectedOrgDetail(null)}
-                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
+                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer active:scale-98"
               >
                 Закрыть профиль
               </button>
