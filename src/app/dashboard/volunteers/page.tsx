@@ -399,7 +399,12 @@ export default function VolunteersPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">База волонтеров (CRM)</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">База волонтеров (CRM)</h2>
+            <span className="bg-emerald-100 text-emerald-800 text-xs font-extrabold px-2.5 py-0.5 rounded-full">
+              {volunteers.length} волонтеров
+            </span>
+          </div>
           <p className="text-xs text-slate-500 mt-1">
             Мониторинг часов работы, рейтинга волонтеров и логов активности
           </p>
@@ -428,11 +433,14 @@ export default function VolunteersPage() {
           <div className="flex bg-slate-100 p-1 rounded-xl">
             <button
               onClick={() => setActiveTab('volunteers')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 activeTab === 'volunteers' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               Волонтеры
+              <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md text-[10px] font-bold">
+                {volunteers.length}
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('applications')}
