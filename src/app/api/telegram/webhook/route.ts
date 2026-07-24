@@ -159,9 +159,21 @@ export async function POST(req: NextRequest) {
             reply_markup: replyMarkup
           })
         })
-        .then(res => res.json())
-        .then(data => {
-          if (!data.ok) console.error('Telegram API error:', data);
+        .then(async res => {
+          const data = await res.json();
+          if (!data.ok) {
+            console.error('Telegram API error:', data);
+            // Fallback: Retry sending without Markdown parse_mode if parsing failed
+            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: telegramId,
+                text: response.text,
+                reply_markup: replyMarkup
+              })
+            });
+          }
         })
         .catch(e => console.error('Failed to send Telegram message:', e))
       );
