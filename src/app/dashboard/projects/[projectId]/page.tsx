@@ -73,7 +73,7 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
       });
       if (res.ok) {
         setIsDeleteModalOpen(false);
-        router.push('/dashboard/projects');
+        router.push(role === 'coordinator' ? '/coordinator-dashboard' : '/dashboard/projects');
       } else {
         const err = await res.json();
         alert(err.error || 'Ошибка при удалении проекта');
@@ -88,6 +88,7 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
 
   // Current authenticated role
   const [role, setRole] = useState('manager');
+  const backHref = role === 'coordinator' ? '/coordinator-dashboard' : '/dashboard/projects';
 
   // New Task Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -469,7 +470,7 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <Link 
-            href="/dashboard/projects"
+            href={backHref}
             className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />

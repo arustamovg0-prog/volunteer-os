@@ -171,7 +171,7 @@ export default function CoordinatorDashboardPage() {
                 </div>
 
                 <Link
-                  href={`/dashboard/projects/${project.id}`}
+                  href={`/coordinator-dashboard/projects/${project.id}`}
                   className="flex items-center gap-1 px-3 py-2 rounded-xl bg-blue-50 text-blue-600 text-xs font-bold hover:bg-blue-100 transition-colors shrink-0"
                 >
                   Открыть
