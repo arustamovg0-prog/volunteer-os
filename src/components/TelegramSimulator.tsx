@@ -10,7 +10,8 @@ import {
   UserPlus, 
   UserCheck,
   Mic,
-  MicOff
+  MicOff,
+  Paperclip
 } from 'lucide-react';
 
 interface MockMessage {
@@ -278,16 +279,34 @@ export default function TelegramSimulator() {
                               ? 'bg-slate-800 text-white rounded-tr-none flex items-center gap-2'
                               : 'bg-slate-900 text-white rounded-tr-none'
                         }`}>
-                          {msg.text.startsWith('[Голосовое сообщение]') ? (
-                            <>
-                              <Mic className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                              <div className="italic">
-                                {msg.text.replace('[Голосовое сообщение]', '').trim()}
-                              </div>
-                            </>
-                          ) : (
-                            msg.text
-                          )}
+                          {(() => {
+                            if (msg.text.startsWith('[Голосовое сообщение]')) {
+                              return (
+                                <>
+                                  <Mic className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                  <div className="italic">
+                                    {msg.text.replace('[Голосовое сообщение]', '').trim()}
+                                  </div>
+                                </>
+                              );
+                            }
+
+                            const fileMatch = msg.text.match(/^📎 \[Файл: (.*?)\]\n\n([\s\S]*)$/);
+                            if (fileMatch) {
+                              const [, fileName, bodyText] = fileMatch;
+                              return (
+                                <div>
+                                  <div className="flex items-center gap-2 px-2.5 py-1.5 mb-2 bg-amber-50 border border-amber-200 rounded-lg text-amber-950 font-medium text-[11px] shadow-2xs">
+                                    <Paperclip className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                    <span className="truncate font-semibold">{fileName}</span>
+                                  </div>
+                                  <div>{bodyText}</div>
+                                </div>
+                              );
+                            }
+
+                            return msg.text;
+                          })()}
                         </div>
 
                         {/* Interactive Buttons */}

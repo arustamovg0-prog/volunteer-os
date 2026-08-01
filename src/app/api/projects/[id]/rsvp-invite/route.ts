@@ -18,8 +18,31 @@ export async function POST(
       return NextResponse.json({ error: 'Проект не найден' }, { status: 404 });
     }
 
-    const body = await req.json().catch(() => ({}));
-    const { customText, includeButtons } = body;
+    let customText: string | undefined;
+    let includeButtons = false;
+    let attachment: { buffer: Buffer; fileName: string; fileType: string } | undefined = undefined;
+
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      customText = (formData.get('customText') as string) || undefined;
+      includeButtons = formData.get('includeButtons') === 'true';
+
+      const file = formData.get('file') as File | null;
+      if (file && file.size > 0) {
+        const arrayBuffer = await file.arrayBuffer();
+        attachment = {
+          buffer: Buffer.from(arrayBuffer),
+          fileName: file.name,
+          fileType: file.type || 'application/octet-stream'
+        };
+      }
+    } else {
+      const body = await req.json().catch(() => ({}));
+      customText = body.customText;
+      includeButtons = body.includeButtons === true;
+    }
 
     // Find all active volunteers with telegram ID
     const volunteers = await prisma.user.findMany({
@@ -53,7 +76,7 @@ export async function POST(
     let successCount = 0;
     const sendPromises = volunteers.map(async (v) => {
       if (!v.telegramId) return;
-      const ok = await sendTelegramMessage(Number(v.telegramId), textToSend, keyboard);
+      const ok = await sendTelegramMessage(Number(v.telegramId), textToSend, keyboard, 'Markdown', attachment);
       if (ok) successCount++;
     });
 

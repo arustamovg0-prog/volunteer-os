@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/useApi';
 import { useSWRConfig } from 'swr';
+import RsvpModal from '@/components/RsvpModal';
 
 interface Project {
   id: string;
@@ -94,65 +95,6 @@ export default function ProjectsPage() {
 
   // RSVP Modal state
   const [rsvpProject, setRsvpProject] = useState<Project | null>(null);
-  const [rsvpMessage, setRsvpMessage] = useState('');
-  const [rsvpIncludeButtons, setRsvpIncludeButtons] = useState(false);
-  const [isSendingRsvp, setIsSendingRsvp] = useState(false);
-
-  function openRsvpModal(proj: Project) {
-    setRsvpProject(proj);
-    setRsvpIncludeButtons(false);
-    const dateFormatted = proj.end_date ? new Date(proj.end_date).toLocaleDateString('ru-RU') : '';
-    setRsvpMessage(
-`Assalomu alaykum, aziz volontyor! 🩺
-
-🎉 Sizni "${proj.title}" loyihasida ko‘rishdan mamnun bo‘lamiz!
-
-${proj.description || ''}
-${dateFormatted ? `\n📅 Sana: ${dateFormatted}` : ''}
-
-Iltimos, ushbu botdagi xabarlarni kuzatib boring.
-
-───────────────────────────
-
-Здравствуйте, дорогой волонтёр! 🩺
-
-🎉 Будем рады видеть вас среди участников проекта "${proj.title}"!
-
-${proj.description || ''}
-${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
-
-Пожалуйста, следите за сообщениями в данном боте.`
-    );
-  }
-
-  async function handleSendRSVPSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!rsvpProject) return;
-    setIsSendingRsvp(true);
-    try {
-      const res = await fetch(`/api/projects/${rsvpProject.id}/rsvp-invite`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customText: rsvpMessage,
-          includeButtons: rsvpIncludeButtons,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(`🎉 Приглашения успешно отправлены! (Доставлено: ${data.count} из ${data.total})`);
-        setRsvpProject(null);
-        mutate('/api/tasks');
-      } else {
-        alert(data.error || 'Ошибка при отправке рассылки');
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Ошибка при отправке приглашений');
-    } finally {
-      setIsSendingRsvp(false);
-    }
-  }
 
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole');
@@ -401,7 +343,7 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
                   {/* Footer Line 2: All 3 Action Buttons on 1 Line (Compact RSVP + Assign + Board link) */}
                   <div className="flex items-center justify-between gap-1 pt-1">
                     <button
-                      onClick={() => openRsvpModal(proj)}
+                      onClick={() => setRsvpProject(proj)}
                       className="shrink-0 px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all whitespace-nowrap active:scale-95 shadow-2xs cursor-pointer"
                       title="Настройка и отправка рассылки (RSVP) волонтерам"
                     >
@@ -622,84 +564,12 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
       )}
 
       {/* RSVP Customization Modal */}
-      {rsvpProject && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-5 relative max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-bold">
-                  <Megaphone className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-slate-950">Рассылка приглашения (RSVP)</h2>
-                  <p className="text-xs text-slate-500 font-medium">Проект: <span className="font-semibold text-slate-800">{rsvpProject.title}</span></p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setRsvpProject(null)}
-                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSendRSVPSubmit} className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                  Текст сообщения для рассылки в Telegram-бот
-                </label>
-                <textarea
-                  value={rsvpMessage}
-                  onChange={(e) => setRsvpMessage(e.target.value)}
-                  rows={9}
-                  className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-xs font-sans focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed text-slate-800 bg-slate-50/50"
-                  placeholder="Введите текст приглашения..."
-                  required
-                />
-                <p className="text-[11px] text-slate-400">
-                  Вы можете свободно изменить текст перед отправкой.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  id="includeButtonsToggle"
-                  checked={rsvpIncludeButtons}
-                  onChange={(e) => setRsvpIncludeButtons(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 text-amber-600 border-amber-300 rounded focus:ring-amber-500 cursor-pointer"
-                />
-                <label htmlFor="includeButtonsToggle" className="cursor-pointer space-y-0.5">
-                  <span className="text-xs font-bold text-amber-950 block">
-                    Добавить кнопки ответа (✅ Да, буду участвовать / ❌ Не смогу)
-                  </span>
-                  <span className="text-[11px] text-amber-800/80 block leading-normal">
-                    Если галочка снята, волонтеры получат только текстовое приглашение без кнопок выбора.
-                  </span>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setRsvpProject(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSendingRsvp || !rsvpMessage.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-2 shadow-sm shadow-amber-500/30 transition-all active:scale-95 disabled:opacity-50"
-                >
-                  <Megaphone className="w-4 h-4" />
-                  {isSendingRsvp ? 'Отправка...' : 'Отправить рассылку волонтерам'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <RsvpModal
+        isOpen={!!rsvpProject}
+        project={rsvpProject}
+        onClose={() => setRsvpProject(null)}
+        onSuccess={() => mutate('/api/tasks')}
+      />
     </div>
   );
 }
