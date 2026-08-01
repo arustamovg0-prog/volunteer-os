@@ -29,6 +29,7 @@ export interface User {
   available_until?: string | null;
   availability_note?: string | null;
   is_physically_ready?: boolean;
+  is_senior?: boolean;
   system_role_id?: string | null;
   systemRole?: any;
 }
@@ -395,6 +396,7 @@ function mapUser(u: any): User {
       : (u.available_until || null),
     availability_note: u.availabilityNote || u.availability_note || null,
     is_physically_ready: u.isPhysicallyReady ?? u.is_physically_ready ?? false,
+    is_senior: u.isSenior ?? u.is_senior ?? false,
     system_role_id: u.systemRoleId || u.system_role_id || null,
     systemRole: u.systemRole || null
   };
@@ -872,6 +874,7 @@ class PrismaDBAdapter {
         if (updates.available_until !== undefined) data.availableUntil = updates.available_until ? new Date(updates.available_until) : null;
         if (updates.availability_note !== undefined) data.availabilityNote = updates.availability_note;
         if (updates.is_physically_ready !== undefined) data.isPhysicallyReady = updates.is_physically_ready;
+        if (updates.is_senior !== undefined) data.isSenior = updates.is_senior;
         if (updates.system_role_id !== undefined) data.systemRoleId = updates.system_role_id;
 
         const updated = await prisma.user.update({ where: { id }, data });

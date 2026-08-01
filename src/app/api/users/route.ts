@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const isOwnProfile = id === auth.session.userId;
-    const canManageUsers = ['admin', 'manager'].includes(auth.session.role);
+    const canManageUsers = ['admin', 'manager', 'coordinator'].includes(auth.session.role);
     if (!canManageUsers && !isOwnProfile) {
       return NextResponse.json({ error: 'Volunteers can update only their own profile' }, { status: 403 });
     }

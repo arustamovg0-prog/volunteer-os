@@ -28,6 +28,7 @@ model User {
   availabilityStatus String              @default("offline") @map("availability_status")
   availableUntil DateTime?               @map("available_until")
   availabilityNote String?               @map("availability_note")
+  isSenior     Boolean                  @default(false) @map("is_senior")
   checkins     CheckIn[]
   memberships  OrganizationMembership[]
   chatMessages ChatMessage[]

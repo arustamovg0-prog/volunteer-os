@@ -20,6 +20,7 @@ export async function POST(
 
     let customText: string | undefined;
     let includeButtons = false;
+    let targetAudience = 'all';
     let attachment: { buffer: Buffer; fileName: string; fileType: string } | undefined = undefined;
 
     const contentType = req.headers.get('content-type') || '';
@@ -28,6 +29,7 @@ export async function POST(
       const formData = await req.formData();
       customText = (formData.get('customText') as string) || undefined;
       includeButtons = formData.get('includeButtons') === 'true';
+      targetAudience = (formData.get('targetAudience') as string) || 'all';
 
       const file = formData.get('file') as File | null;
       if (file && file.size > 0) {
@@ -42,14 +44,44 @@ export async function POST(
       const body = await req.json().catch(() => ({}));
       customText = body.customText;
       includeButtons = body.includeButtons === true;
+      targetAudience = body.targetAudience || 'all';
     }
 
-    // Find all active volunteers with telegram ID
+    // Build recipient filter based on targetAudience
+    const whereClause: any = {
+      role: 'volunteer',
+      telegramId: { not: null }
+    };
+
+    if (targetAudience === 'senior') {
+      whereClause.isSenior = true;
+    } else if (targetAudience === 'project') {
+      const projectTasks = await prisma.task.findMany({
+        where: { projectId: projectId, assignedTo: { not: null } },
+        select: { assignedTo: true }
+      });
+      const checkins = await prisma.checkIn.findMany({
+        where: { projectId: projectId },
+        select: { userId: true }
+      });
+      const userIds = Array.from(new Set([
+        ...projectTasks.map(t => t.assignedTo!).filter(Boolean),
+        ...checkins.map(c => c.userId).filter(Boolean)
+      ]));
+      whereClause.id = { in: userIds };
+    } else if (targetAudience === 'organization' && (project.org_id || (project as any).orgId)) {
+      const targetOrgId = project.org_id || (project as any).orgId;
+      const orgMembers = await prisma.organizationMembership.findMany({
+        where: { orgId: targetOrgId, status: 'approved' },
+        select: { userId: true }
+      });
+      const userIds = Array.from(new Set(orgMembers.map(m => m.userId)));
+      whereClause.id = { in: userIds };
+    }
+
+    // Find active volunteers matching the filter
     const volunteers = await prisma.user.findMany({
-      where: {
-        role: 'volunteer',
-        telegramId: { not: null }
-      },
+      where: whereClause,
       select: {
         id: true,
         telegramId: true,
@@ -58,7 +90,7 @@ export async function POST(
     });
 
     if (volunteers.length === 0) {
-      return NextResponse.json({ error: 'Нет волонтеров с привязанным Telegram' }, { status: 400 });
+      return NextResponse.json({ error: 'В выбранном сегменте аудитории не найдено волонтеров с привязанным Telegram' }, { status: 400 });
     }
 
     // Default invitation text if customText is not provided

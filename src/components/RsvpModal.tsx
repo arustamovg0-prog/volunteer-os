@@ -33,6 +33,7 @@ interface RsvpModalProps {
 export default function RsvpModal({ isOpen, project, onClose, onSuccess }: RsvpModalProps) {
   const [rsvpMessage, setRsvpMessage] = useState('');
   const [rsvpIncludeButtons, setRsvpIncludeButtons] = useState(false);
+  const [targetAudience, setTargetAudience] = useState<'all' | 'project' | 'organization' | 'senior'>('all');
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -44,6 +45,7 @@ export default function RsvpModal({ isOpen, project, onClose, onSuccess }: RsvpM
   useEffect(() => {
     if (project) {
       setRsvpIncludeButtons(false);
+      setTargetAudience('all');
       setAttachedFile(null);
       setPreviewUrl(null);
       setErrorMsg(null);
@@ -162,6 +164,7 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
       const formData = new FormData();
       formData.append('customText', rsvpMessage);
       formData.append('includeButtons', rsvpIncludeButtons ? 'true' : 'false');
+      formData.append('targetAudience', targetAudience);
       
       if (attachedFile) {
         formData.append('file', attachedFile);
@@ -220,6 +223,66 @@ ${dateFormatted ? `\n📅 Дата: ${dateFormatted}` : ''}
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Target Audience Segment Selection */}
+          <div className="space-y-2">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+              Кому отправить рассылку? (Целевая аудитория)
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setTargetAudience('all')}
+                className={`p-3 rounded-xl border text-left transition-all text-xs flex flex-col gap-1 cursor-pointer ${
+                  targetAudience === 'all'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span className="font-bold flex items-center gap-1">🌐 Всем</span>
+                <span className={`text-[10px] ${targetAudience === 'all' ? 'text-slate-300' : 'text-slate-400'}`}>Все волонтеры</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTargetAudience('project')}
+                className={`p-3 rounded-xl border text-left transition-all text-xs flex flex-col gap-1 cursor-pointer ${
+                  targetAudience === 'project'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span className="font-bold flex items-center gap-1">📌 В проекте</span>
+                <span className={`text-[10px] ${targetAudience === 'project' ? 'text-slate-300' : 'text-slate-400'}`}>Состоят в проекте</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTargetAudience('organization')}
+                className={`p-3 rounded-xl border text-left transition-all text-xs flex flex-col gap-1 cursor-pointer ${
+                  targetAudience === 'organization'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                <span className="font-bold flex items-center gap-1">🏢 Из органиизации</span>
+                <span className={`text-[10px] ${targetAudience === 'organization' ? 'text-slate-300' : 'text-slate-400'}`}>В организации</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTargetAudience('senior')}
+                className={`p-3 rounded-xl border text-left transition-all text-xs flex flex-col gap-1 cursor-pointer ${
+                  targetAudience === 'senior'
+                    ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                    : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
+                }`}
+              >
+                <span className="font-bold flex items-center gap-1">⭐ Старшие</span>
+                <span className={`text-[10px] ${targetAudience === 'senior' ? 'text-amber-100' : 'text-amber-700'}`}>Старшие волонтеры</span>
+              </button>
+            </div>
+          </div>
+
           {/* Custom Message Text */}
           <div className="space-y-1.5">
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
