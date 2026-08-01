@@ -227,5 +227,18 @@ export function verifySessionToken(token?: string | null): AuthSession | null {
 }
 
 export function getSessionFromRequest(req: NextRequest) {
-  return verifySessionToken(req.cookies.get(AUTH_COOKIE_NAME)?.value);
+  const cookieToken = req.cookies.get(AUTH_COOKIE_NAME)?.value;
+  if (cookieToken) {
+    const session = verifySessionToken(cookieToken);
+    if (session) return session;
+  }
+
+  const authHeader = req.headers.get('authorization') || req.headers.get('x-session-token');
+  if (authHeader) {
+    const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const session = verifySessionToken(bearerToken);
+    if (session) return session;
+  }
+
+  return null;
 }

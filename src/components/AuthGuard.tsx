@@ -25,7 +25,11 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
       }
 
       try {
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        const token = localStorage.getItem('sessionToken');
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const res = await fetch('/api/auth/me', { credentials: 'include', headers });
         if (!res.ok) {
           router.replace(`/login?next=${encodeURIComponent(pathname || '/')}`);
           return;
@@ -33,11 +37,21 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
 
         const data = await res.json();
         const user = data.user;
-        if (!user || !allowedRoles.includes(user.role)) {
+        if (!user) {
+          router.replace(`/login?next=${encodeURIComponent(pathname || '/')}`);
+          return;
+        }
+
+        const isRoleAllowed =
+          allowedRoles.includes(user.role) ||
+          (['admin', 'manager', 'coordinator'].includes(user.role) &&
+            allowedRoles.some((r) => ['admin', 'manager', 'coordinator'].includes(r)));
+
+        if (!isRoleAllowed) {
           // Redirect to the appropriate home for this user's role
           if (user?.role === 'developer') router.replace('/dashboard/monitor');
           else if (user?.role === 'volunteer') router.replace('/volunteer-dashboard');
-          else if (user?.role === 'coordinator') router.replace('/coordinator-dashboard');
+          else if (user?.role === 'coordinator' || user?.role === 'manager') router.replace('/coordinator-dashboard');
           else router.replace('/dashboard');
           return;
         }

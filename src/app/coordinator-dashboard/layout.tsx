@@ -12,7 +12,7 @@ export default function CoordinatorDashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthGuard allowedRoles={['coordinator']}>
+    <AuthGuard allowedRoles={['coordinator', 'manager', 'admin']}>
       <div className="app-shell flex min-h-screen relative bg-[#F9FAFB] text-[#0F172A] overflow-x-hidden">
         <CoordinatorSidebar />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">

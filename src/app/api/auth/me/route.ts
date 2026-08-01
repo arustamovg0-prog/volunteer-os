@@ -9,20 +9,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ user: null }, { status: 401 });
     }
 
-    const user = await db.getUser(session.userId);
-    if (!user) {
-      return NextResponse.json({ user: null }, { status: 401 });
+    let user = await db.getUser(session.userId);
+    if (!user && session.login) {
+      user = await db.getUserByLogin(session.login);
     }
 
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        role: user.role,
-        full_name: user.full_name,
-        login: user.login || session.login,
-        phone: user.phone || null,
-      },
-    });
+    const finalUser = user ? {
+      id: user.id,
+      role: user.role,
+      full_name: user.full_name,
+      login: user.login || session.login,
+      phone: user.phone || null,
+    } : {
+      id: session.userId,
+      role: session.role,
+      full_name: session.fullName || 'Пользователь',
+      login: session.login,
+      phone: null,
+    };
+
+    return NextResponse.json({ user: finalUser });
   } catch (error) {
     console.error('Session check failed:', error);
     return NextResponse.json({ error: 'Session check failed' }, { status: 500 });

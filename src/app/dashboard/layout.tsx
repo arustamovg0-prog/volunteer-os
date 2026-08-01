@@ -14,7 +14,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthGuard allowedRoles={['admin', 'manager', 'developer']}>
+    <AuthGuard allowedRoles={['admin', 'manager', 'coordinator', 'developer']}>
       <I18nProvider>
         <div className="app-shell flex min-h-screen relative bg-[#F9FAFB] text-[#0F172A] overflow-x-hidden">
           {/* Sidebar Navigation */}

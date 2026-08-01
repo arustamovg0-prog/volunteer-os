@@ -100,9 +100,7 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    localStorage.removeItem('currentUserId');
-    localStorage.removeItem('currentUserName');
-    localStorage.removeItem('currentUserRole');
+    localStorage.clear();
     router.push('/login?role=manager');
   };
 

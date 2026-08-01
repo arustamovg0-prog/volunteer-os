@@ -131,6 +131,9 @@ function LoginForm() {
       }
 
       const user = data.user;
+      if (data.token) {
+        localStorage.setItem('sessionToken', data.token);
+      }
       localStorage.setItem('currentUserId', user.id);
       localStorage.setItem('currentUserName', user.full_name);
       localStorage.setItem('currentUserRole', user.role);
@@ -142,7 +145,8 @@ function LoginForm() {
       }
 
       window.dispatchEvent(new Event('auth-session-change'));
-      router.replace(next || data.redirectTo || '/dashboard');
+      const targetUrl = next && !next.startsWith('/login') ? next : (data.redirectTo || '/dashboard');
+      router.replace(targetUrl);
       router.refresh();
     } catch {
       setError('Ошибка соединения. Проверьте, что платформа запущена.');

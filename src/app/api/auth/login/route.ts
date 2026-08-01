@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
       if (expectedRole === 'leader' && !['admin', 'manager'].includes(user.role)) {
         return NextResponse.json({ error: 'Этот аккаунт не является аккаунтом руководителя' }, { status: 403 });
       }
-      if (expectedRole === 'coordinator' && user.role !== 'coordinator') {
+      if (expectedRole === 'coordinator' && !['coordinator', 'manager', 'admin'].includes(user.role)) {
         return NextResponse.json({ error: 'Этот аккаунт не является аккаунтом координатора' }, { status: 403 });
       }
       if (expectedRole === 'volunteer' && user.role !== 'volunteer') {
@@ -156,11 +156,18 @@ export async function POST(req: NextRequest) {
       login: user.login || login,
     });
 
-    const res = NextResponse.json(publicSession(user));
+    const sessionInfo = publicSession(user);
+    const res = NextResponse.json({
+      ...sessionInfo,
+      token,
+    });
+
+    const isSecure = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1' || process.env.VOLUNTEER_OS_SECURE_COOKIES === 'true';
+
     res.cookies.set(AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.VOLUNTEER_OS_SECURE_COOKIES === 'true',
+      secure: isSecure,
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
     });
