@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = requireSessionRequest(req, ['admin', 'manager']);
+    const auth = requireSessionRequest(req, ['admin', 'manager', 'coordinator']);
     if ('response' in auth) return auth.response;
 
     const body = await req.json();

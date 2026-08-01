@@ -40,7 +40,7 @@ export default function CoordinatorSidebar() {
     { name: 'Задачи проектов', path: '/coordinator-dashboard/tasks', icon: CheckSquare },
     { name: 'Волонтеры', path: '/coordinator-dashboard/volunteers', icon: Users2 },
     { name: 'Чаты', path: '/coordinator-dashboard/chats', icon: MessageSquare },
-    { name: 'Рассылка', path: '/dashboard/broadcast', icon: Megaphone },
+    { name: 'Рассылка', path: '/coordinator-dashboard/broadcast', icon: Megaphone },
   ];
 
   async function handleLogout() {
