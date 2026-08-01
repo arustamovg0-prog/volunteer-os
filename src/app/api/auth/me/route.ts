@@ -5,8 +5,14 @@ import { getSessionFromRequest } from '@/lib/security';
 export async function GET(req: NextRequest) {
   try {
     const session = getSessionFromRequest(req);
+    const headers = {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    };
+
     if (!session) {
-      return NextResponse.json({ user: null }, { status: 401 });
+      return NextResponse.json({ user: null }, { status: 401, headers });
     }
 
     let user = await db.getUser(session.userId);
@@ -28,7 +34,7 @@ export async function GET(req: NextRequest) {
       phone: null,
     };
 
-    return NextResponse.json({ user: finalUser });
+    return NextResponse.json({ user: finalUser }, { headers });
   } catch (error) {
     console.error('Session check failed:', error);
     return NextResponse.json({ error: 'Session check failed' }, { status: 500 });

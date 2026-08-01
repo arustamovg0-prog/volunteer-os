@@ -29,7 +29,7 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
         const headers: Record<string, string> = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const res = await fetch('/api/auth/me', { credentials: 'include', headers });
+        const res = await fetch('/api/auth/me', { credentials: 'include', headers, cache: 'no-store' });
         if (!res.ok) {
           router.replace(`/login?next=${encodeURIComponent(pathname || '/')}`);
           return;
