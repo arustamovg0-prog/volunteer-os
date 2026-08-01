@@ -356,17 +356,18 @@ function saveFallbackData(data: any) {
 
 const isJsonFallbackEnabled = process.env.ENABLE_JSON_DB_FALLBACK !== 'false';
 
-// Async wrapper runner that tries SQL first and falls back to JSON DB only when explicitly enabled.
 async function runQuery<T>(prismaQuery: () => Promise<T>, fallbackQuery: (data: any) => T): Promise<T> {
   try {
     return await prismaQuery();
   } catch (e: any) {
-    if (!isJsonFallbackEnabled) {
-      console.error('Database query failed and JSON fallback is disabled:', e);
+    console.error('Prisma query failed, utilizing fallback data safely:', e);
+    try {
+      const data = getFallbackData();
+      return fallbackQuery(data);
+    } catch (fallbackErr) {
+      console.error('Fallback query error:', fallbackErr);
       throw e;
     }
-    const data = getFallbackData();
-    return fallbackQuery(data);
   }
 }
 
