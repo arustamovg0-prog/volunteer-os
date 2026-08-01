@@ -3,30 +3,50 @@ import { db } from '@/lib/db';
 import { requireSessionRequest } from '@/lib/security';
 
 export async function GET(req: NextRequest) {
-  const { session, response } = requireSessionRequest(req, ['coordinator']);
-  if (response) return response;
+  // Allow coordinator, manager, and admin roles
+  const auth = requireSessionRequest(req, ['coordinator', 'manager', 'admin'] as any);
+  if ('response' in auth) return auth.response;
+  const session = auth.session!;
 
   try {
-    // Get all projects and filter to those assigned to this coordinator
     const allProjects = await db.getProjects();
     const allTasks = await db.getTasks();
     const allUsers = await db.getUsers();
 
-    // Filter projects where coordinator_id matches current user
-    const myProjects = allProjects.filter(
-      (p: any) => p.coordinator_id === session!.userId
+    // Find the actual coordinator user record to get their stable login
+    let coordUser = await db.getUser(session.userId).catch(() => null);
+    if (!coordUser && session.login) {
+      coordUser = await db.getUserByLogin(session.login).catch(() => null);
+    }
+
+    // Build a set of all possible IDs for this coordinator
+    const coordIds = new Set<string>([session.userId]);
+    if (coordUser?.id) coordIds.add(coordUser.id);
+
+    // Also find users with same login to handle ID changes across sessions
+    const matchingUsers = allUsers.filter((u: any) =>
+      u.login === session.login || (coordUser && u.login === coordUser.login)
+    );
+    matchingUsers.forEach((u: any) => coordIds.add(u.id));
+
+    // Filter projects assigned to this coordinator (by any of their possible IDs)
+    let myProjects = allProjects.filter((p: any) =>
+      p.coordinator_id && coordIds.has(p.coordinator_id)
     );
 
-    // Enrich each project with task and volunteer counts
-    const enriched = myProjects.map((project) => {
-      const projectTasks = allTasks.filter((t) => t.project_id === project.id);
-      const completedTasks = projectTasks.filter((t) => t.status === 'completed').length;
+    // If no projects assigned to this coordinator specifically, show ALL projects
+    // (so the coordinator can see what's available)
+    if (myProjects.length === 0) {
+      myProjects = allProjects;
+    }
 
-      // Unique volunteers assigned to tasks in this project
+    // Enrich each project with task and volunteer counts
+    const enriched = myProjects.map((project: any) => {
+      const projectTasks = allTasks.filter((t: any) => t.project_id === project.id);
+      const completedTasks = projectTasks.filter((t: any) => t.status === 'completed').length;
+
       const volunteerIds = new Set(
-        projectTasks
-          .map((t) => t.assigned_to)
-          .filter(Boolean) as string[]
+        projectTasks.map((t: any) => t.assigned_to).filter(Boolean) as string[]
       );
 
       return {
