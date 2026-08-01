@@ -150,6 +150,62 @@ export default function ManagerOrganizationsPage() {
   const [selectedVolunteerToAssign, setSelectedVolunteerToAssign] = useState<User | null>(null);
   const [isAssigningVolunteer, setIsAssigningVolunteer] = useState(false);
 
+  // Create Project within Organization State
+  const [isCreateProjOpen, setIsCreateProjOpen] = useState(false);
+  const [createProjOrgId, setCreateProjOrgId] = useState('');
+  const [createProjTitle, setCreateProjTitle] = useState('');
+  const [createProjDesc, setCreateProjDesc] = useState('');
+  const [createProjStatus, setCreateProjStatus] = useState<'planning' | 'active' | 'completed'>('planning');
+  const [createProjStartDate, setCreateProjStartDate] = useState('');
+  const [createProjEndDate, setCreateProjEndDate] = useState('');
+  const [isSubmittingProj, setIsSubmittingProj] = useState(false);
+
+  const openCreateProjectModal = (orgId: string) => {
+    setCreateProjOrgId(orgId);
+    setCreateProjTitle('');
+    setCreateProjDesc('');
+    setCreateProjStatus('planning');
+    setCreateProjStartDate('');
+    setCreateProjEndDate('');
+    setIsCreateProjOpen(true);
+  };
+
+  const handleCreateOrgProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createProjTitle.trim() || !createProjOrgId) return;
+    setIsSubmittingProj(true);
+
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: createProjTitle,
+          description: createProjDesc,
+          status: createProjStatus,
+          org_id: createProjOrgId,
+          start_date: createProjStartDate ? new Date(createProjStartDate).toISOString() : null,
+          end_date: createProjEndDate ? new Date(createProjEndDate).toISOString() : null
+        })
+      });
+
+      if (res.ok) {
+        setAlertMessage('🎉 Проект успешно создан для организации!');
+        setTimeout(() => setAlertMessage(null), 3000);
+        setIsCreateProjOpen(false);
+        fetchData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Ошибка при создании проекта');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при создании проекта');
+    } finally {
+      setIsSubmittingProj(false);
+    }
+  };
+
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole');
     if (savedRole) setRole(savedRole);
@@ -1283,9 +1339,32 @@ export default function ManagerOrganizationsPage() {
               {/* 5. Projects */}
               {orgDetailTab === 'projects' && (
                 <div className="space-y-4">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Проекты организации ({selectedOrgProjects.length})</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Проекты организации ({selectedOrgProjects.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openCreateProjectModal(selectedOrgDetail.id)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-all cursor-pointer active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Создать проект
+                    </button>
+                  </div>
+
                   {selectedOrgProjects.length === 0 ? (
-                    <p className="text-center py-6 text-slate-350 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">Проектов нет</p>
+                    <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50 space-y-3">
+                      <p className="text-slate-400 text-xs font-medium">У этой организации пока нет созданных проектов</p>
+                      <button
+                        type="button"
+                        onClick={() => openCreateProjectModal(selectedOrgDetail.id)}
+                        className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs inline-flex items-center gap-1.5 shadow-sm hover:bg-slate-800 transition-all cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Создать первый проект
+                      </button>
+                    </div>
                   ) : (
                     <div className="space-y-3 max-h-[350px] overflow-y-auto pr-0.5">
                       {selectedOrgProjects.map(project => {
@@ -1300,7 +1379,7 @@ export default function ManagerOrganizationsPage() {
                         }[project.status];
 
                         return (
-                          <div key={project.id} className="p-3.5 rounded-xl border border-slate-150 bg-white space-y-2 text-xs shadow-xs">
+                          <div key={project.id} className="p-3.5 rounded-xl border border-slate-150 bg-white space-y-2 text-xs shadow-xs hover:border-slate-300 transition-all">
                             <div className="flex items-center justify-between">
                               <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold border ${badgeColor}`}>
                                 {project.status === 'planning' ? 'Подготовка' : project.status === 'active' ? 'Активен' : 'Завершен'}
@@ -1343,6 +1422,105 @@ export default function ManagerOrganizationsPage() {
                 Закрыть профиль
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Create Project inside Organization */}
+      {isCreateProjOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 shadow-xl space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Создать проект организации</h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Организация: <strong>{organizations.find(o => o.id === createProjOrgId)?.name}</strong>
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsCreateProjOpen(false)}
+                className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateOrgProject} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-700 font-bold block">Название проекта</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Введите название социального проекта"
+                  value={createProjTitle}
+                  onChange={(e) => setCreateProjTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-700 font-bold block">Описание проекта</label>
+                <textarea
+                  placeholder="Опишите цели и направление деятельности проекта"
+                  rows={3}
+                  value={createProjDesc}
+                  onChange={(e) => setCreateProjDesc(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900 resize-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-700 font-bold block">Статус проекта</label>
+                <select
+                  value={createProjStatus}
+                  onChange={(e) => setCreateProjStatus(e.target.value as any)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900"
+                >
+                  <option value="planning">Подготовка</option>
+                  <option value="active">Активен</option>
+                  <option value="completed">Завершен</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-700 font-bold block">Дата начала</label>
+                  <input
+                    type="date"
+                    value={createProjStartDate}
+                    onChange={(e) => setCreateProjStartDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-700 font-bold block">Дата завершения</label>
+                  <input
+                    type="date"
+                    value={createProjEndDate}
+                    onChange={(e) => setCreateProjEndDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3 justify-end border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateProjOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingProj || !createProjTitle.trim()}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmittingProj ? 'Создание...' : 'Создать проект'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
   Plus, 
@@ -16,7 +17,8 @@ import {
   MessageSquare,
   Megaphone,
   Send,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import RsvpModal from '@/components/RsvpModal';
 
@@ -50,11 +52,39 @@ interface UserProfile {
 
 export default function ProjectKanbanPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = use(params);
+  const router = useRouter();
 
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [volunteers, setVolunteers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Delete project state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  async function confirmDeleteProject() {
+    if (!project) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/projects?id=${project.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setIsDeleteModalOpen(false);
+        router.push('/dashboard/projects');
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Ошибка при удалении проекта');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при удалении проекта');
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   // Current authenticated role
   const [role, setRole] = useState('manager');
@@ -490,6 +520,16 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
         
         {role === 'admin' || role === 'manager' ? (
           <div className="flex gap-2">
+            {role === 'admin' && (
+              <button
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95 cursor-pointer"
+                title="Удалить проект (доступно только Руководителю)"
+              >
+                <Trash2 className="w-4 h-4 text-red-600" />
+                Удалить проект
+              </button>
+            )}
             <button
               onClick={() => setIsRsvpModalOpen(true)}
               className="px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
@@ -957,6 +997,49 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
           onSuccess={() => fetchData()}
         />
 
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && project && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-6 shadow-xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <button 
+                  onClick={() => setIsDeleteModalOpen(false)} 
+                  className="text-slate-400 hover:text-slate-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900">Удалить проект?</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Вы действительно хотите безвозвратно удалить проект <strong className="text-slate-800">«{project.title}»</strong>? Все связанные задачи и данные проекта будут удалены.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteProject}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isDeleting ? 'Удаление...' : 'Да, удалить'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

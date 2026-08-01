@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const { title, description, status, start_date, end_date, latitude, longitude, allowed_radius_km } = body;
+    const { title, description, status, start_date, end_date, latitude, longitude, allowed_radius_km, org_id, orgId } = body;
 
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       status: status || 'planning',
       start_date: start_date || null,
       end_date: end_date || null,
+      org_id: org_id || orgId || null,
       latitude: latitude ?? null,
       longitude: longitude ?? null,
       allowed_radius_km: allowed_radius_km ?? 0.5
@@ -81,5 +82,33 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     console.error('Failed to update project:', error);
     return NextResponse.json({ error: 'Failed to update project' }, { status: 500 });
+  }
+}
+
+// DELETE /api/projects — delete project (STRICTLY for admin / Руководитель)
+export async function DELETE(req: NextRequest) {
+  try {
+    const auth = requireSessionRequest(req, ['admin']);
+    if ('response' in auth) return auth.response;
+
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get('id') || searchParams.get('projectId');
+
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body?.id || body?.projectId;
+      } catch {}
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+    }
+
+    await db.deleteProject(id);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete project:', error);
+    return NextResponse.json({ error: 'Failed to delete project' }, { status: 500 });
   }
 }

@@ -13,7 +13,9 @@ import {
   UserCheck,
   Megaphone,
   Users,
-  X
+  X,
+  Building2,
+  Trash2
 } from 'lucide-react';
 import { useApi } from '@/lib/useApi';
 import { useSWRConfig } from 'swr';
@@ -24,10 +26,16 @@ interface Project {
   title: string;
   description: string;
   status: 'planning' | 'active' | 'completed';
+  org_id?: string | null;
   start_date?: string | null;
   end_date?: string | null;
   created_at: string;
   coordinator_id?: string | null;
+}
+
+interface VolunteerOrganization {
+  id: string;
+  name: string;
 }
 
 interface Coordinator {
@@ -49,7 +57,10 @@ export default function ProjectsPage() {
   const { data: projects = [] } = useApi<Project[]>('/api/projects');
   const { data: tasks = [] } = useApi<Task[]>('/api/tasks');
   const { data: coordinatorsData } = useApi<any>('/api/users?role=coordinator');
+  const { data: organizationsData } = useApi<any>('/api/organizations');
+  
   const coordinators: Coordinator[] = (coordinatorsData?.users || coordinatorsData || []).filter((u: any) => u.role === 'coordinator');
+  const organizations: VolunteerOrganization[] = Array.isArray(organizationsData) ? organizationsData : [];
 
   const loading = !projects.length && !tasks.length && !coordinatorsData;
 
@@ -61,6 +72,7 @@ export default function ProjectsPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'planning' | 'active' | 'completed'>('planning');
+  const [selectedOrgId, setSelectedOrgId] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [latitude, setLatitude] = useState<string>('');
@@ -95,6 +107,34 @@ export default function ProjectsPage() {
 
   // RSVP Modal state
   const [rsvpProject, setRsvpProject] = useState<Project | null>(null);
+
+  // Delete project state
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  async function confirmDeleteProject() {
+    if (!deletingProject) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/projects?id=${deletingProject.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setDeletingProject(null);
+        mutate('/api/projects');
+        mutate('/api/tasks');
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Ошибка при удалении проекта');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при удалении проекта');
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole');
@@ -141,6 +181,7 @@ export default function ProjectsPage() {
           title,
           description,
           status,
+          org_id: selectedOrgId || null,
           start_date: startDate ? new Date(startDate).toISOString() : null,
           end_date: endDate ? new Date(endDate).toISOString() : null,
           latitude: latitude ? parseFloat(latitude) : null,
@@ -153,6 +194,7 @@ export default function ProjectsPage() {
         setIsModalOpen(false);
         setTitle('');
         setDescription('');
+        setSelectedOrgId('');
         setStartDate('');
         setEndDate('');
         setLatitude('');
@@ -276,27 +318,50 @@ export default function ProjectsPage() {
                     {proj.start_date ? new Date(proj.start_date).toLocaleDateString('ru-RU') : 'Начало не задано'}
                   </span>
                   
-                  {['admin', 'manager'].includes(role) ? (
-                    <select
-                      value={proj.status}
-                      onChange={(e) => handleUpdateProjectStatus(proj.id, e.target.value as any)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold border cursor-pointer outline-none transition-all ${statusColors[proj.status]}`}
-                      title="Нажмите, чтобы изменить статус проекта"
-                    >
-                      <option value="active">🔵 Активен</option>
-                      <option value="planning">⏳ Подготовка</option>
-                      <option value="completed">✅ Завершен</option>
-                    </select>
-                  ) : (
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${statusColors[proj.status]}`}>
-                      <IconComponent className="w-3.5 h-3.5" />
-                      {statusText[proj.status]}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {['admin', 'manager'].includes(role) ? (
+                      <select
+                        value={proj.status}
+                        onChange={(e) => handleUpdateProjectStatus(proj.id, e.target.value as any)}
+                        className={`px-3 py-1 rounded-full text-xs font-bold border cursor-pointer outline-none transition-all ${statusColors[proj.status]}`}
+                        title="Нажмите, чтобы изменить статус проекта"
+                      >
+                        <option value="active">🔵 Активен</option>
+                        <option value="planning">⏳ Подготовка</option>
+                        <option value="completed">✅ Завершен</option>
+                      </select>
+                    ) : (
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${statusColors[proj.status]}`}>
+                        <IconComponent className="w-3.5 h-3.5" />
+                        {statusText[proj.status]}
+                      </span>
+                    )}
+
+                    {role === 'admin' && (
+                      <button
+                        onClick={() => setDeletingProject(proj)}
+                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                        title="Удалить проект (доступно только Руководителю)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Title and description */}
-                <h4 className="font-bold text-slate-900 text-sm mt-3 line-clamp-1">{proj.title}</h4>
+                <div className="mt-3 space-y-1">
+                  {proj.org_id && (
+                    <span 
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold text-slate-700 bg-slate-100 border border-slate-200 shrink-0 max-w-[200px] truncate"
+                      title={`Организация: ${organizations.find(o => o.id === proj.org_id)?.name || 'Организация'}`}
+                    >
+                      <Building2 className="w-3 h-3 text-slate-500 shrink-0" />
+                      <span className="truncate">{organizations.find(o => o.id === proj.org_id)?.name || 'Организация'}</span>
+                    </span>
+                  )}
+                  <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{proj.title}</h4>
+                </div>
                 <p className="text-[11px] text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
                   {proj.description || 'Описание проекта отсутствует.'}
                 </p>
@@ -459,6 +524,23 @@ export default function ProjectsPage() {
               </div>
 
               <div className="space-y-1.5">
+                <label className="text-xs text-slate-500 font-semibold block flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                  Привязать к организации (опционально)
+                </label>
+                <select
+                  value={selectedOrgId}
+                  onChange={(e) => setSelectedOrgId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-950 text-xs focus:outline-none focus:border-slate-900"
+                >
+                  <option value="">— Без организации —</option>
+                  {organizations.map(o => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="text-xs text-slate-500 font-semibold block">Статус проекта</label>
                 <select
                   value={status}
@@ -570,6 +652,50 @@ export default function ProjectsPage() {
         onClose={() => setRsvpProject(null)}
         onSuccess={() => mutate('/api/tasks')}
       />
+
+      {/* Delete Confirmation Modal */}
+      {deletingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-sm bg-white border border-slate-200 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <button 
+                onClick={() => setDeletingProject(null)} 
+                className="text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-slate-900">Удалить проект?</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Вы действительно хотите безвозвратно удалить проект <strong className="text-slate-800">«{deletingProject.title}»</strong>? Все связанные задачи и данные проекта будут удалены.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeletingProject(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteProject}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeleting ? 'Удаление...' : 'Да, удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

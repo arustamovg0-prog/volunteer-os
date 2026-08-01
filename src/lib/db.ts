@@ -1060,6 +1060,27 @@ class PrismaDBAdapter {
     );
   }
 
+  async deleteProject(id: string): Promise<void> {
+    await runQuery(
+      async () => {
+        try {
+          await prisma.project.delete({ where: { id } });
+        } catch (e) {
+          console.error('Prisma delete project error:', e);
+        }
+      },
+      (data) => {
+        if (data.projects) {
+          data.projects = data.projects.filter((p: any) => p.id !== id);
+        }
+        if (data.tasks) {
+          data.tasks = data.tasks.filter((t: any) => t.project_id !== id);
+        }
+        saveFallbackData(data);
+      }
+    );
+  }
+
   // Tasks
   async getTasks(): Promise<Task[]> {
     return runQuery(
