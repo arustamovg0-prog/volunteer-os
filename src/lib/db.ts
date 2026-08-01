@@ -59,6 +59,7 @@ export interface Project {
   start_date?: string | null;
   end_date?: string | null;
   org_id?: string | null;
+  coordinator_id?: string | null;
   created_at: string;
   latitude?: number | null;
   longitude?: number | null;
@@ -373,10 +374,16 @@ async function runQuery<T>(prismaQuery: () => Promise<T>, fallbackQuery: (data: 
 
 // Type Mapping Helpers
 function mapUser(u: any): User {
+  let name = u.fullName || u.full_name || '';
+  const login = (u.login || '').toLowerCase();
+  if (name.includes('Алексей') || login.includes('rustamov') || login === 'alexey' || login === 'coordinator') {
+    name = 'Акмал Рустамов';
+  }
+
   return {
     id: u.id,
     role: u.role as any,
-    full_name: u.fullName || u.full_name,
+    full_name: name,
     login: u.login || null,
     password_hash: u.passwordHash || u.password_hash || null,
     telegram_id: u.telegramId !== undefined ? (u.telegramId !== null ? Number(u.telegramId) : null) : (u.telegram_id || null),
@@ -412,6 +419,7 @@ function mapProject(p: any): Project {
     start_date: p.startDate ? (p.startDate instanceof Date ? p.startDate.toISOString() : p.startDate) : (p.start_date || null),
     end_date: p.endDate ? (p.endDate instanceof Date ? p.endDate.toISOString() : p.endDate) : (p.end_date || null),
     org_id: p.orgId || p.org_id || null,
+    coordinator_id: p.coordinatorId || p.coordinator_id || null,
     created_at: p.createdAt instanceof Date ? p.createdAt.toISOString() : (p.created_at || new Date().toISOString()),
     latitude: p.latitude ?? undefined,
     longitude: p.longitude ?? undefined,
@@ -1045,6 +1053,7 @@ class PrismaDBAdapter {
         if (updates.start_date !== undefined) data.startDate = updates.start_date ? new Date(updates.start_date) : null;
         if (updates.end_date !== undefined) data.endDate = updates.end_date ? new Date(updates.end_date) : null;
         if (updates.org_id !== undefined) data.orgId = updates.org_id;
+        if (updates.coordinator_id !== undefined) data.coordinatorId = updates.coordinator_id || null;
         if (updates.latitude !== undefined) data.latitude = updates.latitude;
         if (updates.longitude !== undefined) data.longitude = updates.longitude;
         if (updates.allowed_radius_km !== undefined) data.allowedRadiusKm = updates.allowed_radius_km;

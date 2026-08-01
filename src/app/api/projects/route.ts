@@ -60,11 +60,14 @@ export async function POST(req: NextRequest) {
 // PATCH /api/projects — update project status, coordinator, or location
 export async function PATCH(req: NextRequest) {
   try {
-    const auth = requireSessionRequest(req, ['admin', 'manager']);
+    const auth = requireSessionRequest(req, ['admin', 'manager', 'coordinator'] as any);
     if ('response' in auth) return auth.response;
 
     const body = await req.json();
-    const { projectId, coordinatorId, status, latitude, longitude, allowed_radius_km } = body;
+    const projectId = body.projectId || body.id;
+    const coordinatorId = body.coordinatorId !== undefined ? body.coordinatorId : body.coordinator_id;
+    const orgId = body.orgId !== undefined ? body.orgId : body.org_id;
+    const { status, latitude, longitude, allowed_radius_km } = body;
 
     if (!projectId) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
@@ -73,6 +76,7 @@ export async function PATCH(req: NextRequest) {
     const updates: any = {};
     if (status !== undefined) updates.status = status;
     if (coordinatorId !== undefined) updates.coordinator_id = coordinatorId || null;
+    if (orgId !== undefined) updates.org_id = orgId || null;
     if (latitude !== undefined) updates.latitude = latitude === null ? null : parseFloat(latitude);
     if (longitude !== undefined) updates.longitude = longitude === null ? null : parseFloat(longitude);
     if (allowed_radius_km !== undefined) updates.allowed_radius_km = parseFloat(allowed_radius_km);

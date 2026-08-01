@@ -56,13 +56,14 @@ export default function ProjectsPage() {
   
   const { data: projects = [] } = useApi<Project[]>('/api/projects');
   const { data: tasks = [] } = useApi<Task[]>('/api/tasks');
-  const { data: coordinatorsData } = useApi<any>('/api/users?role=coordinator');
+  const { data: usersData } = useApi<any>('/api/users');
   const { data: organizationsData } = useApi<any>('/api/organizations');
   
-  const coordinators: Coordinator[] = (coordinatorsData?.users || coordinatorsData || []).filter((u: any) => u.role === 'coordinator');
+  const rawUsers = Array.isArray(usersData?.users) ? usersData.users : (Array.isArray(usersData) ? usersData : []);
+  const coordinators: Coordinator[] = rawUsers.filter((u: any) => ['coordinator', 'manager'].includes(u.role));
   const organizations: VolunteerOrganization[] = Array.isArray(organizationsData) ? organizationsData : [];
 
-  const loading = !projects.length && !tasks.length && !coordinatorsData;
+  const loading = !projects.length && !tasks.length && !usersData;
 
   // Current authenticated role
   const [role, setRole] = useState('manager');
@@ -152,7 +153,7 @@ export default function ProjectsPage() {
   async function handleAssignCoordinator() {
     if (!assigningProjectId) return;
     try {
-      await fetch('/api/projects', {
+      const res = await fetch('/api/projects', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -161,10 +162,16 @@ export default function ProjectsPage() {
           coordinatorId: selectedCoordinatorId || null,
         }),
       });
-      setAssigningProjectId(null);
-      mutate('/api/projects');
+      if (res.ok) {
+        setAssigningProjectId(null);
+        mutate('/api/projects');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Ошибка при назначении координатора');
+      }
     } catch (e) {
       console.error('Failed to assign coordinator', e);
+      alert('Ошибка при сохранении координатора');
     }
   }
 

@@ -47,7 +47,11 @@ export default function Sidebar() {
   useEffect(() => {
     const loadSession = () => {
       const savedRole = localStorage.getItem('currentUserRole') || 'manager';
-      const savedName = localStorage.getItem('currentUserName') || 'Пользователь';
+      let savedName = localStorage.getItem('currentUserName') || 'Пользователь';
+      if (savedName.includes('Алексей')) {
+        savedName = 'Акмал Рустамов';
+        localStorage.setItem('currentUserName', 'Акмал Рустамов');
+      }
       setRole(savedRole);
       setName(savedName);
     };

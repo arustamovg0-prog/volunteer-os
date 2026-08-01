@@ -42,8 +42,13 @@ export default function AuthGuard({ allowedRoles, children }: AuthGuardProps) {
           return;
         }
 
+        let fullName = user.full_name || '';
+        if (fullName.includes('Алексей') || user.login?.includes('rustamov')) {
+          fullName = 'Акмал Рустамов';
+        }
+
         localStorage.setItem('currentUserId', user.id);
-        localStorage.setItem('currentUserName', user.full_name);
+        localStorage.setItem('currentUserName', fullName);
         localStorage.setItem('currentUserRole', user.role);
 
         if (user.role === 'volunteer') {

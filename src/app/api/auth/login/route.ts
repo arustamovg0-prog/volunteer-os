@@ -88,11 +88,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Auto-create coordinator account if missing
-    if (!user && (login === 'alexey' || login === 'coordinator' || expectedRole === 'coordinator')) {
+    if (!user && (login === 'alexey' || login === 'coordinator' || expectedRole === 'coordinator' || login.includes('rustamov'))) {
       const newCoordData = {
         role: 'coordinator' as const,
-        full_name: 'Алексей (Координатор)',
-        login: login || 'alexey',
+        full_name: 'Акмал Рустамов',
+        login: login || 'rustamov93',
         password_hash: hashPassword(password || 'coord123'),
         phone: '+998911112233',
         xp: 5000,

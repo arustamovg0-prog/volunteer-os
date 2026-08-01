@@ -22,7 +22,12 @@ export default function CoordinatorDashboardPage() {
   const [name, setName] = useState('');
 
   useEffect(() => {
-    setName(localStorage.getItem('currentUserName') || 'Координатор');
+    let savedName = localStorage.getItem('currentUserName') || 'Координатор';
+    if (savedName.includes('Алексей')) {
+      savedName = 'Акмал Рустамов';
+      localStorage.setItem('currentUserName', 'Акмал Рустамов');
+    }
+    setName(savedName);
     loadProjects();
   }, []);
 

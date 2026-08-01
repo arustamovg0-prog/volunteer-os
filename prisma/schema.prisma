@@ -51,6 +51,7 @@ model Project {
   startDate   DateTime?            @map("start_date")
   endDate     DateTime?            @map("end_date")
   orgId       String?              @map("org_id")
+  coordinatorId String?            @map("coordinator_id")
   createdAt   DateTime             @default(now()) @map("created_at")
   latitude    Float?
   longitude   Float?
