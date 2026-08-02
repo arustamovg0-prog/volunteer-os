@@ -523,15 +523,15 @@ export default function VolunteersPage() {
     <>
       <div className="space-y-6 animate-fade-in pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">База волонтеров (CRM)</h2>
-            <span className="bg-emerald-100 text-emerald-800 text-xs font-extrabold px-2.5 py-0.5 rounded-full shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">База волонтеров (CRM)</h2>
+            <span className="bg-emerald-100 text-emerald-800 text-xs font-extrabold px-3 py-1 rounded-full shrink-0">
               {volunteers.length} волонтеров
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 font-medium">
             Мониторинг часов работы, рейтинга волонтеров и логов активности
           </p>
         </div>
@@ -539,25 +539,25 @@ export default function VolunteersPage() {
         {role === 'admin' && activeTab === 'volunteers' && (
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all duration-155 active:scale-98 shrink-0 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all duration-150 active:scale-98 shrink-0 cursor-pointer w-full sm:w-auto"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 stroke-[2.5]" />
             Зарегистрировать
           </button>
         )}
       </div>
 
       {/* Control Toolbar: Search Bar + Tabs + Quick Action */}
-      <div className="p-3 bg-white border border-slate-200/80 rounded-2xl shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Search Bar */}
-        <div className="relative flex-1 min-w-[260px]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+        {/* Search Bar (Spans 6 cols on LG) */}
+        <div className="lg:col-span-6 relative">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Поиск по ФИО, телефону или ID / TG..."
-            className="w-full pl-10 pr-9 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
+            className="w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 font-medium focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all shadow-2xs"
           />
           {searchQuery && (
             <button 
@@ -569,66 +569,67 @@ export default function VolunteersPage() {
           )}
         </div>
 
-        {/* Tabs & Actions */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <div className="flex bg-slate-100/90 p-1 rounded-xl items-center gap-1">
-            <button
-              onClick={() => { setActiveTab('volunteers'); setSeniorSegmentFilter('all'); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                activeTab === 'volunteers' && seniorSegmentFilter === 'all' 
-                  ? 'bg-white text-slate-900 shadow-2xs' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Все
-              <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold">
-                {volunteers.length}
+        {/* Segment Tabs (Spans 4 cols on LG) */}
+        <div className="lg:col-span-4 flex items-center bg-slate-100 p-1 rounded-xl w-full overflow-x-auto">
+          <button
+            onClick={() => { setActiveTab('volunteers'); setSeniorSegmentFilter('all'); }}
+            className={`flex-1 min-w-[70px] py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
+              activeTab === 'volunteers' && seniorSegmentFilter === 'all' 
+                ? 'bg-white text-slate-900 shadow-2xs' 
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Все
+            <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-md text-[10px] font-black">
+              {volunteers.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('volunteers'); setSeniorSegmentFilter('senior'); }}
+            className={`flex-1 min-w-[95px] py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
+              activeTab === 'volunteers' && seniorSegmentFilter === 'senior' 
+                ? 'bg-amber-500 text-white shadow-2xs' 
+                : 'text-amber-700 hover:bg-amber-100/70'
+            }`}
+          >
+            ⭐ Старшие
+            <span className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+              activeTab === 'volunteers' && seniorSegmentFilter === 'senior' 
+                ? 'bg-amber-600 text-white' 
+                : 'bg-amber-100 text-amber-800'
+            }`}>
+              {volunteers.filter(v => v.is_senior).length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('applications')}
+            className={`flex-1 min-w-[75px] py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer ${
+              activeTab === 'applications' 
+                ? 'bg-white text-slate-900 shadow-2xs' 
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Заявки
+            {applications.filter((a: any) => a.status === 'pending').length > 0 && (
+              <span className="bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-md text-[10px] font-black">
+                {applications.filter((a: any) => a.status === 'pending').length}
               </span>
-            </button>
+            )}
+          </button>
+        </div>
 
-            <button
-              onClick={() => { setActiveTab('volunteers'); setSeniorSegmentFilter('senior'); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                activeTab === 'volunteers' && seniorSegmentFilter === 'senior' 
-                  ? 'bg-amber-500 text-white shadow-2xs' 
-                  : 'text-amber-700 hover:bg-amber-100/80'
-              }`}
-            >
-              ⭐ Старшие
-              <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${
-                activeTab === 'volunteers' && seniorSegmentFilter === 'senior' 
-                  ? 'bg-amber-600 text-white' 
-                  : 'bg-amber-100 text-amber-800'
-              }`}>
-                {volunteers.filter(v => v.is_senior).length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('applications')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                activeTab === 'applications' 
-                  ? 'bg-white text-slate-900 shadow-2xs' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Заявки
-              {applications.filter((a: any) => a.status === 'pending').length > 0 && (
-                <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold">
-                  {applications.filter((a: any) => a.status === 'pending').length}
-                </span>
-              )}
-            </button>
-          </div>
-
+        {/* Quick Action Button (Spans 2 cols on LG) */}
+        <div className="lg:col-span-2 flex justify-end">
           {activeTab === 'volunteers' && (
             <button
               type="button"
               onClick={selectOnlySeniorVolunteers}
-              className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200/90 text-amber-900 font-extrabold text-xs flex items-center gap-1.5 hover:bg-amber-100 transition-all cursor-pointer shrink-0 shadow-2xs"
+              className="w-full lg:w-auto px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-900 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-amber-100 transition-all cursor-pointer shrink-0 shadow-2xs whitespace-nowrap"
               title="Отметить всех старших волонтеров галочками в 1 клик"
             >
-              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+              <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
               Выбрать старших (1 клик)
             </button>
           )}
@@ -714,12 +715,12 @@ export default function VolunteersPage() {
                       title="Выбрать всех"
                     />
                   </th>
-                  <th className="py-4 px-6">Имя волонтера</th>
-                  <th className="py-4 px-4">Контакты</th>
-                  <th className="py-4 px-4">Задачи (Вып. / Актив.)</th>
-                  <th className="py-4 px-4">Всего часов</th>
-                  <th className="py-4 px-4 text-center">Готовность к физ. труду</th>
-                  <th className="py-4 px-6 text-right">Рейтинг волонтера</th>
+                  <th className="py-4 px-6 whitespace-nowrap">Имя волонтера</th>
+                  <th className="py-4 px-4 whitespace-nowrap">Контакты</th>
+                  <th className="py-4 px-4 whitespace-nowrap">Задачи (Вып. / Актив.)</th>
+                  <th className="py-4 px-4 whitespace-nowrap">Всего часов</th>
+                  <th className="py-4 px-4 text-center whitespace-nowrap">Готовность к физ. труду</th>
+                  <th className="py-4 px-6 text-right whitespace-nowrap">Рейтинг волонтера</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
