@@ -1,48 +1,133 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, prisma } from '@/lib/db';
+import { prisma } from '@/lib/db';
 import { requirePrivilegedRequest } from '@/lib/security';
 import { sendTelegramMessage } from '@/lib/telegram-api';
 
 export async function POST(req: NextRequest) {
   try {
     // Check authorization: only admin or manager can broadcast
-    const authError = requirePrivilegedRequest(req, ['admin', 'manager']);
+    const authError = requirePrivilegedRequest(req, ['admin', 'manager', 'coordinator']);
     if (authError) return authError;
 
-    const body = await req.json();
-    const { message, roles } = body;
+    let message = '';
+    let roles: string[] = [];
+    let userIds: string[] = [];
+    let projectId: string | null = null;
+    let organizationId: string | null = null;
+    let attachment: { buffer: Buffer; fileName: string; fileType: string } | undefined = undefined;
 
-    if (!message || typeof message !== 'string') {
-      return NextResponse.json({ error: 'Сообщение обязательно' }, { status: 400 });
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      message = (formData.get('message') as string) || '';
+      
+      const rolesRaw = formData.get('roles');
+      if (rolesRaw) {
+        try {
+          roles = JSON.parse(rolesRaw as string);
+        } catch {
+          roles = (rolesRaw as string).split(',').filter(Boolean);
+        }
+      }
+
+      const userIdsRaw = formData.get('userIds');
+      if (userIdsRaw) {
+        try {
+          userIds = JSON.parse(userIdsRaw as string);
+        } catch {
+          userIds = (userIdsRaw as string).split(',').filter(Boolean);
+        }
+      }
+
+      projectId = (formData.get('projectId') as string) || null;
+      organizationId = (formData.get('organizationId') as string) || null;
+
+      const file = formData.get('file') as File | null;
+      if (file && typeof file !== 'string' && file.size > 0) {
+        const arrayBuffer = await file.arrayBuffer();
+        attachment = {
+          buffer: Buffer.from(arrayBuffer),
+          fileName: file.name,
+          fileType: file.type || 'application/octet-stream'
+        };
+      }
+    } else {
+      const body = await req.json();
+      message = body.message || '';
+      roles = body.roles || [];
+      userIds = body.userIds || [];
+      projectId = body.projectId || null;
+      organizationId = body.organizationId || null;
     }
 
-    if (!Array.isArray(roles) || roles.length === 0) {
-      return NextResponse.json({ error: 'Не выбраны роли для рассылки' }, { status: 400 });
+    if (!message.trim() && !attachment) {
+      return NextResponse.json({ error: 'Укажите текст сообщения или прикрепите файл' }, { status: 400 });
     }
 
-    // Find all users matching the requested roles and with a valid telegramId
+    // Determine target users based on targeting mode
+    let targetUserIds: string[] = [];
+
+    if (userIds && userIds.length > 0) {
+      // Selective user targeting
+      targetUserIds = userIds;
+    } else if (projectId) {
+      // Target users involved in project tasks
+      const tasks = await prisma.task.findMany({
+        where: { projectId: projectId, assignedTo: { not: null } },
+        select: { assignedTo: true }
+      });
+      targetUserIds = Array.from(new Set(tasks.map(t => t.assignedTo).filter(Boolean) as string[]));
+    } else if (organizationId) {
+      // Target approved organization members
+      const memberships = await prisma.organizationMembership.findMany({
+        where: { orgId: organizationId, status: 'approved' },
+        select: { userId: true }
+      });
+      targetUserIds = memberships.map(m => m.userId);
+    }
+
+    let whereClause: any = {
+      telegramId: { not: null }
+    };
+
+    if (targetUserIds.length > 0) {
+      whereClause.id = { in: targetUserIds };
+    } else if (roles && roles.length > 0) {
+      whereClause.role = { in: roles };
+    } else {
+      return NextResponse.json({ error: 'Не выбраны получатели рассылки' }, { status: 400 });
+    }
+
+    // Fetch matching users with valid Telegram accounts
     const users = await prisma.user.findMany({
-      where: {
-        role: { in: roles },
-        telegramId: { not: null }
-      },
+      where: whereClause,
       select: {
-        telegramId: true
+        id: true,
+        telegramId: true,
+        fullName: true
       }
     });
 
     if (users.length === 0) {
-      return NextResponse.json({ success: true, count: 0, message: 'Нет пользователей с привязанным Telegram в выбранных группах' });
+      return NextResponse.json({ 
+        success: true, 
+        count: 0, 
+        message: 'Нет пользователей с привязанным Telegram среди выбранных получателей' 
+      });
     }
 
-    // Send messages in parallel (or batch them if there are thousands, but for 100+ parallel is fine)
     let successCount = 0;
-    
-    // Create an array of promises for sending messages
+
     const sendPromises = users.map(async (user) => {
       if (!user.telegramId) return;
-      
-      const success = await sendTelegramMessage(Number(user.telegramId), message);
+      const success = await sendTelegramMessage(
+        Number(user.telegramId),
+        message || (attachment ? `📎 [Файл: ${attachment.fileName}]` : ''),
+        undefined,
+        'Markdown',
+        attachment
+      );
       if (success) {
         successCount++;
       }
@@ -50,14 +135,14 @@ export async function POST(req: NextRequest) {
 
     await Promise.all(sendPromises);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       count: successCount,
-      totalAttempted: users.length 
+      totalAttempted: users.length
     });
 
   } catch (error) {
-    console.error('Broadcast error:', error);
+    console.error('Broadcast API error:', error);
     return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 });
   }
 }

@@ -24,8 +24,12 @@ export async function sendTelegramMessage(
   attachment?: TelegramAttachment
 ): Promise<boolean> {
   const config = await db.getBotConfig();
+  // Validate bot token presence
   const token = config.bot_token || process.env.TELEGRAM_BOT_TOKEN;
-  
+  if (!token || token === 'MOCK_BOT_TOKEN' || token === '') {
+    console.warn('Telegram bot token is not set; messages will be logged only.');
+  } 
+
   // Format reply markup for Telegram
   let replyMarkup: any = undefined;
   if (keyboard) {
@@ -60,6 +64,7 @@ export async function sendTelegramMessage(
     ? `📎 [Файл: ${attachment.fileName}]\n\n${text}`
     : text;
 
+  // Log the message to DB (or simulator) regardless of token
   try {
     await db.createMockMessage(telegramId, 'bot', logText, keyboard);
   } catch (e) {
@@ -67,8 +72,18 @@ export async function sendTelegramMessage(
   }
 
   // 2. Send real telegram message if token exists
+  // If a real token is configured, attempt to send via Telegram API
   if (token && token !== 'MOCK_BOT_TOKEN' && token !== '') {
     try {
+      // Ensure FormData is available (Node 18+ provides it globally)
+      const hasFormData = typeof FormData !== 'undefined';
+      if (!hasFormData) {
+        // Dynamically import form-data polyfill if needed
+        const { FormData: NodeFormData } = await import('form-data');
+        // @ts-expect-error assign to global
+        globalThis.FormData = NodeFormData;
+      }
+
       if (attachment) {
         // Send file with caption to Telegram using FormData
         const formData = new FormData();
@@ -128,6 +143,7 @@ export async function sendTelegramMessage(
         }
         return true;
       } else {
+        // Fallback to simple text message when no attachment
         const url = `https://api.telegram.org/bot${token}/sendMessage`;
         const body = {
           chat_id: telegramId,
@@ -143,7 +159,8 @@ export async function sendTelegramMessage(
         });
 
         if (!res.ok) {
-          console.error(`Telegram API error: ${res.status} ${res.statusText}`, await res.text());
+          const errorText = await res.text();
+          console.error(`Telegram API error: ${res.status} ${res.statusText}`, errorText);
           return false;
         }
         return true;

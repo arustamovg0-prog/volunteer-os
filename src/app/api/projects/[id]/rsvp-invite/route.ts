@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, prisma } from '@/lib/db';
-import { requirePrivilegedRequest } from '@/lib/security';
+import { requirePrivilegedRequest, getSessionFromRequest } from '@/lib/security';
 import { sendTelegramMessage, TelegramButton } from '@/lib/telegram-api';
 
 export async function POST(
@@ -8,14 +8,23 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authError = requirePrivilegedRequest(req, ['admin', 'manager']);
+    const authError = requirePrivilegedRequest(req, ['admin', 'manager', 'coordinator']);
     if (authError) return authError;
+
+    const session = getSessionFromRequest(req);
 
     const { id: projectId } = await params;
     const project = await db.getProject(projectId);
 
     if (!project) {
       return NextResponse.json({ error: 'Проект не найден' }, { status: 404 });
+    }
+
+    // Validate Telegram bot token configuration
+    const botConfig = await db.getBotConfig();
+    const botToken = botConfig.bot_token || process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken || botToken === 'MOCK_BOT_TOKEN' || botToken === '') {
+      return NextResponse.json({ error: 'Telegram bot token is not configured' }, { status: 500 });
     }
 
     let customText: string | undefined;
@@ -77,6 +86,54 @@ export async function POST(
       });
       const userIds = Array.from(new Set(orgMembers.map(m => m.userId)));
       whereClause.id = { in: userIds };
+    }
+
+    if (session && session.role === 'coordinator') {
+      const matchingUsers = await prisma.user.findMany({
+        where: { login: session.login }
+      });
+      const coordIds = Array.from(new Set([session.userId, ...matchingUsers.map(u => u.id)]));
+
+      const coordProjects = await prisma.project.findMany({
+        where: { coordinatorId: { in: coordIds } },
+        select: { id: true, orgId: true }
+      });
+      const projectIds = coordProjects.map(p => p.id);
+      
+      const orgMemberships = await prisma.organizationMembership.findMany({
+        where: { userId: { in: coordIds }, status: 'approved' },
+        select: { orgId: true }
+      });
+      
+      const orgIds = new Set([
+        ...coordProjects.map(p => p.orgId).filter(Boolean) as string[],
+        ...orgMemberships.map(m => m.orgId)
+      ]);
+      
+      const allowedTasks = await prisma.task.findMany({
+        where: { projectId: { in: projectIds }, assignedTo: { not: null } },
+        select: { assignedTo: true }
+      });
+      const allowedCheckins = await prisma.checkIn.findMany({
+        where: { projectId: { in: projectIds } },
+        select: { userId: true }
+      });
+      const allowedOrgMembers = await prisma.organizationMembership.findMany({
+        where: { orgId: { in: Array.from(orgIds) }, status: 'approved' },
+        select: { userId: true }
+      });
+      
+      const allowedVolunteerIds = Array.from(new Set([
+        ...allowedTasks.map(t => t.assignedTo!),
+        ...allowedCheckins.map(c => c.userId),
+        ...allowedOrgMembers.map(m => m.userId)
+      ]));
+
+      if (whereClause.id && whereClause.id.in) {
+        whereClause.id.in = whereClause.id.in.filter((id: string) => allowedVolunteerIds.includes(id));
+      } else {
+        whereClause.id = { in: allowedVolunteerIds };
+      }
     }
 
     // Find active volunteers matching the filter

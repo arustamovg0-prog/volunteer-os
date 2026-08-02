@@ -115,6 +115,7 @@ export default function ManagerOrganizationsPage() {
   const [checkins, setCheckins] = useState<CheckIn[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState('');
 
   // Current authenticated role
   const [role, setRole] = useState('manager'); // 'admin' (Director) vs 'manager' (Coordinator)
@@ -209,10 +210,12 @@ export default function ManagerOrganizationsPage() {
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole');
     if (savedRole) setRole(savedRole);
+    setCurrentUserId(localStorage.getItem('currentUserId') || '');
 
     const handleRoleChange = () => {
       const updated = localStorage.getItem('currentUserRole');
       if (updated) setRole(updated);
+      setCurrentUserId(localStorage.getItem('currentUserId') || '');
     };
 
     window.addEventListener('auth-session-change', handleRoleChange);
@@ -541,9 +544,14 @@ export default function ManagerOrganizationsPage() {
                     <span className="text-[9px] text-slate-400 font-medium">Создано: {new Date(org.created_at).toLocaleDateString('ru-RU')}</span>
                   </div>
 
-                  <h4 className="font-bold text-slate-900 text-sm group-hover:text-slate-750 flex items-center gap-1.5">
+                  <h4 className="font-bold text-slate-900 text-sm group-hover:text-slate-750 flex items-center gap-2 flex-wrap">
                     {org.name}
-                    <ChevronRight className="w-4 h-4 text-slate-350 transition-transform group-hover:translate-x-0.5" />
+                    {orgMembers.some(m => m.user_id === currentUserId) && (
+                      <span className="px-2 py-0.5 rounded-lg border bg-amber-50 text-amber-600 border-amber-200 text-[10px] uppercase tracking-wide">
+                        Моя организация
+                      </span>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-slate-350 transition-transform group-hover:translate-x-0.5 ml-auto" />
                   </h4>
                   <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{org.description}</p>
                 </div>

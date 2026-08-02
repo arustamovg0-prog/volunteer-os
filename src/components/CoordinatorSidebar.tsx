@@ -12,7 +12,8 @@ import {
   UserCheck,
   Menu,
   X,
-  Megaphone
+  Megaphone,
+  Building2
 } from 'lucide-react';
 
 export default function CoordinatorSidebar() {
@@ -41,6 +42,7 @@ export default function CoordinatorSidebar() {
 
   const menuItems = [
     { name: 'Мои Проекты', path: '/coordinator-dashboard', icon: FolderGit2 },
+    { name: 'Организации', path: '/coordinator-dashboard/organizations', icon: Building2 },
     { name: 'Задачи проектов', path: '/coordinator-dashboard/tasks', icon: CheckSquare },
     { name: 'Волонтеры', path: '/coordinator-dashboard/volunteers', icon: Users2 },
     { name: 'Чаты', path: '/coordinator-dashboard/chats', icon: MessageSquare },

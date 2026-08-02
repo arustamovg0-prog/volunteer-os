@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
         taskCount: projectTasks.length,
         completedTasks,
         volunteerCount: volunteerIds.size,
+        is_my_project: project.coordinator_id ? coordIds.has(project.coordinator_id) : false,
       };
     });
 

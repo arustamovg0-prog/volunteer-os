@@ -14,6 +14,7 @@ interface Project {
   taskCount?: number;
   completedTasks?: number;
   volunteerCount?: number;
+  coordinator_id?: string | null;
 }
 
 export default function CoordinatorDashboardPage() {
@@ -134,6 +135,11 @@ export default function CoordinatorDashboardPage() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${statusColor(project.status)}`}>
                       {statusLabel(project.status)}
                     </span>
+                    {(project as any).is_my_project && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg border bg-amber-50 text-amber-600 border-amber-200 uppercase tracking-wide">
+                        Мой проект
+                      </span>
+                    )}
                   </div>
                   {project.description && (
                     <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{project.description}</p>
