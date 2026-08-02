@@ -18,7 +18,10 @@ import {
   Megaphone,
   Send,
   X,
-  Trash2
+  Trash2,
+  Search,
+  Check,
+  ChevronDown
 } from 'lucide-react';
 import RsvpModal from '@/components/RsvpModal';
 
@@ -93,9 +96,12 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
   // New Task Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
-  const [taskVolunteerId, setTaskVolunteerId] = useState('');
   const [taskDeadline, setTaskDeadline] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Volunteer Dropdown State
+  const [isVolunteerDropdownOpen, setIsVolunteerDropdownOpen] = useState(false);
+  const [volunteerSearch, setVolunteerSearch] = useState('');
 
   // Project Chat State
   const [chat, setChat] = useState<any>(null);
@@ -343,8 +349,10 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
       if (res.ok) {
         setIsModalOpen(false);
         setTaskTitle('');
-        setTaskVolunteerId('');
         setTaskDeadline('');
+        setIsModalOpen(false);
+        setVolunteerSearch('');
+        setIsVolunteerDropdownOpen(false);
         fetchData();
       }
     } catch (err) {
@@ -829,18 +837,67 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 relative">
                 <label className="text-xs text-slate-500 font-bold block">Назначить исполнителя</label>
-                <select
-                  value={taskVolunteerId}
-                  onChange={(e) => setTaskVolunteerId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 focus:border-slate-900"
+                
+                <div 
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-900 cursor-pointer flex justify-between items-center"
+                  onClick={() => setIsVolunteerDropdownOpen(!isVolunteerDropdownOpen)}
                 >
-                  <option value="">-- Оставить неназначенной --</option>
-                  {volunteers.map(v => (
-                    <option key={v.id} value={v.id}>{v.full_name}</option>
-                  ))}
-                </select>
+                  <span className="truncate">
+                    {taskVolunteerId 
+                      ? volunteers.find(v => v.id === taskVolunteerId)?.full_name || 'Волонтер выбран'
+                      : '-- Оставить неназначенной --'}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                </div>
+
+                {isVolunteerDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 flex flex-col">
+                    <div className="p-2 border-b border-slate-100 shrink-0 relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input 
+                        type="text" 
+                        placeholder="Поиск по имени..."
+                        value={volunteerSearch}
+                        onChange={(e) => setVolunteerSearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                      />
+                    </div>
+                    <div className="overflow-y-auto p-1 flex-1">
+                      <div 
+                        className={`px-3 py-2 text-xs rounded-lg cursor-pointer hover:bg-slate-50 flex items-center justify-between ${!taskVolunteerId ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-700'}`}
+                        onClick={() => {
+                          setTaskVolunteerId('');
+                          setIsVolunteerDropdownOpen(false);
+                        }}
+                      >
+                        -- Оставить неназначенной --
+                        {!taskVolunteerId && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                      {volunteers
+                        .filter(v => v.full_name.toLowerCase().includes(volunteerSearch.toLowerCase()))
+                        .map(v => (
+                        <div 
+                          key={v.id}
+                          className={`px-3 py-2 text-xs rounded-lg cursor-pointer hover:bg-slate-50 flex items-center justify-between ${taskVolunteerId === v.id ? 'bg-blue-50 text-blue-600 font-medium' : 'text-slate-700'}`}
+                          onClick={() => {
+                            setTaskVolunteerId(v.id);
+                            setIsVolunteerDropdownOpen(false);
+                          }}
+                        >
+                          {v.full_name}
+                          {taskVolunteerId === v.id && <Check className="w-3.5 h-3.5" />}
+                        </div>
+                      ))}
+                      {volunteers.filter(v => v.full_name.toLowerCase().includes(volunteerSearch.toLowerCase())).length === 0 && (
+                        <div className="px-3 py-4 text-xs text-center text-slate-500">
+                          Волонтер не найден
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -857,8 +914,12 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
               <div className="flex gap-3 pt-2 justify-end">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-all"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setIsVolunteerDropdownOpen(false);
+                    setVolunteerSearch('');
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 border border-slate-200 rounded-xl text-slate-600 font-bold hover:bg-slate-50 transition-colors text-xs"
                 >
                   Отмена
                 </button>
