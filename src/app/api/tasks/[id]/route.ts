@@ -29,6 +29,10 @@ export async function PATCH(req: NextRequest, segmentData: { params: Params }) {
     }
 
     if (!isManager) {
+      if (oldTask.is_overdue || new Date(oldTask.deadline) < new Date()) {
+        return NextResponse.json({ error: 'Task is overdue and cannot be modified' }, { status: 403 });
+      }
+
       const allowedVolunteerFields = new Set(isVolunteerClaimingOpenTask ? ['status', 'assigned_to'] : ['status']);
       for (const key of Object.keys(body)) {
         if (!allowedVolunteerFields.has(key)) {

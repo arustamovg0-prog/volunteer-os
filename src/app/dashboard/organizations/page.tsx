@@ -22,7 +22,8 @@ import {
   Target,
   Network,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  Search
 } from 'lucide-react';
 
 interface VolunteerOrganization {
@@ -1204,6 +1205,7 @@ export default function ManagerOrganizationsPage() {
 
                     {/* Autocomplete / Search input */}
                     <div className="relative">
+                      <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type="text"
                         placeholder="Введите ФИО или телефон волонтера..."
@@ -1212,8 +1214,17 @@ export default function ManagerOrganizationsPage() {
                           setVolunteerSearchTerm(e.target.value);
                           setSelectedVolunteerToAssign(null);
                         }}
-                        className="w-full px-3.5 py-2.5 border border-slate-200 bg-white text-slate-900 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                        className="w-full pl-10 pr-9 py-2.5 border border-slate-200 bg-white text-slate-900 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
                       />
+                      {volunteerSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setVolunteerSearchTerm('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
 
                       {/* Live Filtered Search Suggestions */}
                       {volunteerSearchTerm.trim().length > 0 && !selectedVolunteerToAssign && (

@@ -66,3 +66,70 @@ export function generateDocument(data: DocumentData): Promise<Buffer> {
     doc.end();
   });
 }
+
+export interface TemplateData {
+  volunteerName: string;
+  projectName?: string;
+  hours?: number;
+  date: string;
+  template: {
+    title: string;
+    bodyText: string;
+    signature: string;
+    primaryColor: string;
+    accentColor: string;
+  };
+}
+
+export function generateTemplateDocument(data: TemplateData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    // Landscape A4 for certificates
+    const doc = new PDFDocument({ margin: 50, size: 'A4', layout: 'landscape' });
+    const buffers: Buffer[] = [];
+    doc.on('data', buffers.push.bind(buffers));
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+    doc.on('error', reject);
+
+    // Register Cyrillic fonts
+    const fontRegularPath = path.join(process.cwd(), 'public', 'fonts', 'Roboto-Regular.ttf');
+    const fontBoldPath = path.join(process.cwd(), 'public', 'fonts', 'Roboto-Bold.ttf');
+    
+    try {
+      doc.registerFont('Roboto', fontRegularPath);
+      doc.registerFont('Roboto-Bold', fontBoldPath);
+    } catch (e) {
+      console.warn("Could not load Roboto fonts, falling back to built-in fonts (may break Cyrillic)", e);
+    }
+
+    // Border
+    doc.rect(20, 20, doc.page.width - 40, doc.page.height - 40).stroke(data.template.primaryColor);
+    doc.rect(24, 24, doc.page.width - 48, doc.page.height - 48).stroke(data.template.accentColor);
+
+    // Title
+    doc.moveDown(3);
+    doc.font('Roboto-Bold').fontSize(42).fillColor(data.template.primaryColor).text(data.template.title, { align: 'center' });
+    doc.moveDown(2);
+
+    // Parse Body
+    let parsedBody = data.template.bodyText;
+    parsedBody = parsedBody.replace(/\{\{name\}\}/g, data.volunteerName);
+    parsedBody = parsedBody.replace(/\{\{project\}\}/g, data.projectName || '');
+    parsedBody = parsedBody.replace(/\{\{date\}\}/g, data.date);
+    parsedBody = parsedBody.replace(/\{\{hours\}\}/g, data.hours ? data.hours.toString() : '');
+
+    const textX = (doc.page.width - 600) / 2;
+    doc.font('Roboto').fontSize(18).fillColor('#333333').text(parsedBody, textX, doc.y, { align: 'center', width: 600 });
+    
+    doc.moveDown(4);
+
+    // Signature & Date
+    doc.font('Roboto-Bold').fontSize(14).text(data.template.signature, 100, doc.page.height - 150);
+    doc.font('Roboto').fontSize(12).text('_______________ / Подпись /', 100, doc.page.height - 120);
+
+    doc.font('Roboto-Bold').fontSize(14).text('Дата выдачи', doc.page.width - 250, doc.page.height - 150);
+    doc.font('Roboto').fontSize(12).text(data.date, doc.page.width - 250, doc.page.height - 120);
+
+    doc.end();
+  });
+}
+

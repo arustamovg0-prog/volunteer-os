@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Megaphone,
-  Building2
+  Building2,
+  Award
 } from 'lucide-react';
 
 export default function CoordinatorSidebar() {
@@ -46,6 +47,7 @@ export default function CoordinatorSidebar() {
     { name: 'Задачи проектов', path: '/coordinator-dashboard/tasks', icon: CheckSquare },
     { name: 'Волонтеры', path: '/coordinator-dashboard/volunteers', icon: Users2 },
     { name: 'Чаты', path: '/coordinator-dashboard/chats', icon: MessageSquare },
+    { name: 'Награждение', path: '/coordinator-dashboard/awards', icon: Award },
     { name: 'Рассылка', path: '/coordinator-dashboard/broadcast', icon: Megaphone },
   ];
 

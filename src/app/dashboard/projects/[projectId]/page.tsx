@@ -131,6 +131,14 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
   // RSVP Modal state
   const [isRsvpModalOpen, setIsRsvpModalOpen] = useState(false);
 
+  // Complete Task Modal State
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [taskToComplete, setTaskToComplete] = useState<any>(null);
+  const [completeHours, setCompleteHours] = useState('2');
+  const [completeScore, setCompleteScore] = useState('5');
+  const [completeFeedback, setCompleteFeedback] = useState('Отличная работа!');
+  const [isCompletingTask, setIsCompletingTask] = useState(false);
+
   useEffect(() => {
     const savedRole = localStorage.getItem('currentUserRole');
     if (savedRole) setRole(savedRole);
@@ -311,14 +319,74 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
     );
   }
 
+  async function handleConfirmComplete(e: React.FormEvent) {
+    e.preventDefault();
+    if (!taskToComplete) return;
+    setIsCompletingTask(true);
+    try {
+      // 1. Move task to completed
+      await fetch(`/api/tasks/${taskToComplete.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'completed', is_overdue: false })
+      });
+
+      // 2. Create manual Check-in (hours)
+      const checkinRes = await fetch('/api/checkins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: taskToComplete.assigned_to,
+          project_id: projectId,
+          text_report: 'Закрыто координатором',
+          hours: completeHours
+        })
+      });
+
+      if (checkinRes.ok) {
+        const checkinData = await checkinRes.json();
+        // 3. Grade the check-in (feedback & KPI)
+        await fetch('/api/checkins', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            checkInId: checkinData.id,
+            kpi_score: completeScore,
+            feedback: completeFeedback,
+            status: 'approved'
+          })
+        });
+      }
+
+      setIsCompleteModalOpen(false);
+      setTaskToComplete(null);
+      fetchData(); // refresh board
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка при закрытии задачи');
+    } finally {
+      setIsCompletingTask(false);
+    }
+  }
+
   // Shift status handler
   async function handleMoveTask(taskId: string, newStatus: 'pending' | 'accepted' | 'completed') {
-    if (role !== 'admin') return; // Restriction safeguard
+    if (role !== 'admin' && role !== 'manager') return; // Restriction safeguard
+    
+    if (newStatus === 'completed') {
+      const task = tasks.find(t => t.id === taskId);
+      if (task && task.assigned_to) {
+        setTaskToComplete(task);
+        setIsCompleteModalOpen(true);
+        return;
+      }
+    }
+    
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus, is_overdue: false })
       });
       if (res.ok) {
         // Optimistic UI update
@@ -675,8 +743,8 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
                           </span>
                         </div>
 
-                        {/* Shift action buttons (only visible if Director/admin) */}
-                        {role === 'admin' && (
+                        {/* Shift action buttons (only visible if Director/admin or manager) */}
+                        {(role === 'admin' || role === 'manager') && (
                           <div className="flex justify-end gap-1.5 pt-1">
                             {col.status !== 'pending' && (
                               <button
@@ -1051,6 +1119,7 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
           </div>
         </div>
       )}
+
         {/* RSVP Customization Modal */}
         <RsvpModal
           isOpen={isRsvpModalOpen}
@@ -1069,7 +1138,7 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
                 </div>
                 <button 
                   onClick={() => setIsDeleteModalOpen(false)} 
-                  className="text-slate-400 hover:text-slate-700"
+                  className="text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1099,6 +1168,84 @@ export default function ProjectKanbanPage({ params }: { params: Promise<{ projec
                   {isDeleting ? 'Удаление...' : 'Да, удалить'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Complete Task Modal */}
+        {isCompleteModalOpen && taskToComplete && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <h3 className="font-bold text-slate-900 text-sm">Подтверждение выполнения</h3>
+                <button onClick={() => setIsCompleteModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleConfirmComplete} className="p-5 space-y-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-600">Задача: <strong>{taskToComplete.title}</strong></p>
+                  <p className="text-[10px] text-slate-500">Волонтер получит часы и отзыв.</p>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Часы волонтера</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    required
+                    value={completeHours}
+                    onChange={(e) => setCompleteHours(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-slate-900 focus:border-slate-900 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Оценка (1-5)</label>
+                  <select
+                    required
+                    value={completeScore}
+                    onChange={(e) => setCompleteScore(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-slate-900 focus:border-slate-900 outline-none"
+                  >
+                    <option value="5">⭐⭐⭐⭐⭐ (Отлично)</option>
+                    <option value="4">⭐⭐⭐⭐ (Хорошо)</option>
+                    <option value="3">⭐⭐⭐ (Нормально)</option>
+                    <option value="2">⭐⭐ (Плохо)</option>
+                    <option value="1">⭐ (Ужасно)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Отзыв волонтеру</label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={completeFeedback}
+                    onChange={(e) => setCompleteFeedback(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-slate-900 focus:border-slate-900 outline-none resize-none"
+                    placeholder="Напишите пару слов о работе волонтера..."
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCompleteModalOpen(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCompletingTask}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {isCompletingTask ? 'Сохранение...' : 'Завершить задачу'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

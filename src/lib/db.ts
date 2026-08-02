@@ -323,6 +323,28 @@ export interface Notification {
   created_at: string;
 }
 
+export interface CertificateTemplate {
+  id: string;
+  name: string;
+  title: string;
+  bodyText: string;
+  signature: string;
+  primaryColor: string;
+  accentColor: string;
+  orgId?: string | null;
+  createdAt: string;
+}
+
+export interface Award {
+  id: string;
+  templateId: string;
+  volunteerId: string;
+  projectId?: string | null;
+  issuedBy: string;
+  issuedAt: string;
+}
+
+
 // Setup connection pool and adapter for Prisma 7
 const connectionString = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/postgres?schema=public";
 const pool = new pg.Pool({ connectionString });
@@ -732,6 +754,32 @@ function mapNotification(n: any): Notification {
     created_at: n.createdAt instanceof Date ? n.createdAt.toISOString() : (n.created_at || new Date().toISOString())
   };
 }
+
+function mapCertificateTemplate(t: any): CertificateTemplate {
+  return {
+    id: t.id,
+    name: t.name,
+    title: t.title,
+    bodyText: t.bodyText,
+    signature: t.signature,
+    primaryColor: t.primaryColor,
+    accentColor: t.accentColor,
+    orgId: t.orgId || null,
+    createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : (t.created_at || new Date().toISOString())
+  };
+}
+
+function mapAward(a: any): Award {
+  return {
+    id: a.id,
+    templateId: a.templateId,
+    volunteerId: a.volunteerId,
+    projectId: a.projectId || null,
+    issuedBy: a.issuedBy,
+    issuedAt: a.issuedAt instanceof Date ? a.issuedAt.toISOString() : (a.issued_at || new Date().toISOString())
+  };
+}
+
 
 // Asynchronous DB Class implementing the exact schema methods with fallbacks
 class PrismaDBAdapter {
@@ -2896,6 +2944,124 @@ class PrismaDBAdapter {
           return data.volunteerApplications[index];
         }
         throw new Error('Application not found');
+      }
+    );
+  }
+  // Templates
+  async getCertificateTemplates(): Promise<CertificateTemplate[]> {
+    return runQuery(
+      async () => {
+        const items = await prisma.certificateTemplate.findMany({ orderBy: { createdAt: 'desc' } });
+        return items.map(mapCertificateTemplate);
+      },
+      (data) => {
+        return (data.certificate_templates || []).map(mapCertificateTemplate);
+      }
+    );
+  }
+
+  async getCertificateTemplate(id: string): Promise<CertificateTemplate | null> {
+    return runQuery(
+      async () => {
+        const item = await prisma.certificateTemplate.findUnique({ where: { id } });
+        return item ? mapCertificateTemplate(item) : null;
+      },
+      (data) => {
+        const item = (data.certificate_templates || []).find((t: any) => t.id === id);
+        return item ? mapCertificateTemplate(item) : null;
+      }
+    );
+  }
+
+  async createCertificateTemplate(templateData: Omit<CertificateTemplate, 'id' | 'createdAt'>): Promise<CertificateTemplate> {
+    return runQuery(
+      async () => {
+        const item = await prisma.certificateTemplate.create({
+          data: {
+            name: templateData.name,
+            title: templateData.title,
+            bodyText: templateData.bodyText,
+            signature: templateData.signature,
+            primaryColor: templateData.primaryColor,
+            accentColor: templateData.accentColor,
+            orgId: templateData.orgId
+          }
+        });
+        return mapCertificateTemplate(item);
+      },
+      (data) => {
+        const newItem = {
+          id: Date.now().toString(),
+          ...templateData,
+          createdAt: new Date()
+        };
+        data.certificate_templates = data.certificate_templates || [];
+        data.certificate_templates.push(newItem);
+        saveFallbackData(data);
+        return mapCertificateTemplate(newItem);
+      }
+    );
+  }
+
+  async updateCertificateTemplate(id: string, templateData: Partial<CertificateTemplate>): Promise<CertificateTemplate> {
+    return runQuery(
+      async () => {
+        const item = await prisma.certificateTemplate.update({
+          where: { id },
+          data: templateData
+        });
+        return mapCertificateTemplate(item);
+      },
+      (data) => {
+        const idx = (data.certificate_templates || []).findIndex((t: any) => t.id === id);
+        if (idx !== -1) {
+          data.certificate_templates[idx] = { ...data.certificate_templates[idx], ...templateData };
+          saveFallbackData(data);
+          return mapCertificateTemplate(data.certificate_templates[idx]);
+        }
+        throw new Error('Template not found');
+      }
+    );
+  }
+
+  async deleteCertificateTemplate(id: string): Promise<void> {
+    return runQuery(
+      async () => {
+        await prisma.certificateTemplate.delete({ where: { id } });
+      },
+      (data) => {
+        if (data.certificate_templates) {
+          data.certificate_templates = data.certificate_templates.filter((t: any) => t.id !== id);
+          saveFallbackData(data);
+        }
+      }
+    );
+  }
+
+  // Awards
+  async createAward(awardData: Omit<Award, 'id' | 'issuedAt'>): Promise<Award> {
+    return runQuery(
+      async () => {
+        const item = await prisma.award.create({
+          data: {
+            templateId: awardData.templateId,
+            volunteerId: awardData.volunteerId,
+            projectId: awardData.projectId,
+            issuedBy: awardData.issuedBy
+          }
+        });
+        return mapAward(item);
+      },
+      (data) => {
+        const newItem = {
+          id: Date.now().toString(),
+          ...awardData,
+          issuedAt: new Date()
+        };
+        data.awards = data.awards || [];
+        data.awards.push(newItem);
+        saveFallbackData(data);
+        return mapAward(newItem);
       }
     );
   }

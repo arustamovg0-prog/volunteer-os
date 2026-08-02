@@ -786,7 +786,8 @@ export default function VolunteerDashboard() {
                   {task.status === 'pending' && (
                     <button
                       onClick={() => handleAcceptTask(task.id)}
-                      className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold transition-all shadow-sm cursor-pointer"
+                      disabled={deadlineState === 'overdue'}
+                      className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Принять в работу
                     </button>
@@ -796,8 +797,8 @@ export default function VolunteerDashboard() {
                       {!activeCheckIn ? (
                         <button
                           onClick={() => handleStartCheckIn(task.project_id!)}
-                          disabled={isCheckingIn}
-                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                          disabled={isCheckingIn || deadlineState === 'overdue'}
+                          className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           📍 Начать смену
                         </button>
@@ -807,7 +808,8 @@ export default function VolunteerDashboard() {
                             setActiveCheckInId(activeCheckIn.id);
                             setReportingTask(task);
                           }}
-                          className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1"
+                          disabled={deadlineState === 'overdue'}
+                          className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           🏁 Завершить смену
                         </button>
